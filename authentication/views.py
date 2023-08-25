@@ -8,6 +8,11 @@ from authentication.models import User, Account, Session, generate_random_userna
 from authentication.serializers import UserAuthSerializer, SessionAuthSerializer
 from watchpartyyoutube.utils import BAD_REQUEST_RESPONSE
 from authentication.middleware import auth_key_middleware
+from authentication.validators import (
+    UserCreateValidator,
+    UserUpdateValidator,
+    LinkAccountValidator,
+)
 
 
 EMAIL_PROVIDER = "email"
@@ -20,11 +25,13 @@ def create_user_view(request):
     if user_info is None:
         return BAD_REQUEST_RESPONSE
 
+    validator = UserCreateValidator(data=user_info)
+    if not validator.is_valid():
+        return BAD_REQUEST_RESPONSE
+
     name = user_info.get("name", None)
     email = user_info.get("email", None)
     image = user_info.get("image", None)
-    if None in [name, email]:
-        return BAD_REQUEST_RESPONSE
 
     name_split = name.split(" ")
 
@@ -84,14 +91,15 @@ def get_user_view(request):
 @api_view(["POST"])
 @auth_key_middleware
 def update_user_view(request):
+    validator = UserUpdateValidator(data=request.data)
+    if not validator.is_valid():
+        return BAD_REQUEST_RESPONSE
+
     username = request.data.get("id", None)
     email = request.data.get("email", None)
     image = request.data.get("image", None)
     name = request.data.get("name", None)
     emailVerified = request.data.get("emailVerified", None)
-
-    if None in [username, email, image, name, emailVerified]:
-        return BAD_REQUEST_RESPONSE
 
     try:
         user = User.objects.get(username=username)
@@ -115,7 +123,10 @@ def update_user_view(request):
 @api_view(["POST"])
 @auth_key_middleware
 def link_account_view(request):
-    # TODO use serializer validation
+    validator = LinkAccountValidator(data=request.data)
+    if not validator.is_valid():
+        return BAD_REQUEST_RESPONSE
+
     type = request.data.get("type", None)
     provider = request.data.get("provider", None)
     providerAccountId = request.data.get("providerAccountId", None)
@@ -127,20 +138,6 @@ def link_account_view(request):
     id_token = request.data.get("id_token", None)
 
     userId = request.data.get("userId", None)
-
-    if None in [
-        provider,
-        type,
-        providerAccountId,
-        access_token,
-        expires_at,
-        refresh_token,
-        scope,
-        token_type,
-        id_token,
-        userId,
-    ]:
-        return BAD_REQUEST_RESPONSE
 
     try:
         user = User.objects.get(username=userId)
