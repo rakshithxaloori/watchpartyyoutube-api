@@ -1,0 +1,9 @@
+Django==4.2.4
+psycopg2-binary==2.9.7
+python-dotenv==1.0.0
+djangorestframework==3.14.0
+django-cors-headers==4.2.0
+django-storages==1.13.2
+requests==2.31.0
+resend==0.5.2
+boto3==1.28.33
