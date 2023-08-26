@@ -196,3 +196,8 @@ CORS_ALLOW_METHODS = ["GET", "POST"]
 # Resend
 RESEND_API_KEY = os.environ["RESEND_API_KEY"]
 RESEND_WEBHOOK_SIGNING_KEY = os.environ["RESEND_WEBHOOK_SIGNING_KEY"]
+
+################################################################################
+# S3 Upload & Process
+AWS_INPUT_BUCKET_NAME = os.environ["AWS_INPUT_BUCKET_NAME"]
+AWS_OUTPUT_BUCKET_NAME = os.environ["AWS_OUTPUT_BUCKET_NAME"]
