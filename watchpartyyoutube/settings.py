@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "storages",
     # Local apps
     "authentication",
+    "upload",
 ]
 
 MIDDLEWARE = [
@@ -201,3 +202,13 @@ RESEND_WEBHOOK_SIGNING_KEY = os.environ["RESEND_WEBHOOK_SIGNING_KEY"]
 # S3 Upload & Process
 AWS_INPUT_BUCKET_NAME = os.environ["AWS_INPUT_BUCKET_NAME"]
 AWS_OUTPUT_BUCKET_NAME = os.environ["AWS_OUTPUT_BUCKET_NAME"]
+
+################################################################################
+# Celery
+REDIS_URL = os.environ["REDIS_URL"]
+
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
