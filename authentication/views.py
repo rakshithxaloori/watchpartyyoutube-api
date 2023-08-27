@@ -234,10 +234,9 @@ def get_session_view(request):
 @auth_key_middleware
 def update_session_view(request):
     sessionToken = request.data.get("sessionToken", None)
-    userId = request.data.get("userId", None)
     expires = request.data.get("expires", None)
 
-    if None in [sessionToken, userId, expires]:
+    if None in [sessionToken, expires]:
         return BAD_REQUEST_RESPONSE
 
     try:
