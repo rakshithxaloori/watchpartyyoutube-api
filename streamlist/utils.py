@@ -1,12 +1,13 @@
 from django.conf import settings
 
-from upload.clients import s3_client
+from streamlist.clients import s3_client
 
 
 def create_presigned_s3_post(file_size, file_path):
     EXPIRES_IN = 60 * 60 * 24 * 2  # 2 days
     fields = {
         "Content-Type": "multipart/form-data",
+        # "x-amz-storage-class": "INTELLIGENT_TIERING",
     }
 
     conditions = [
@@ -22,3 +23,7 @@ def create_presigned_s3_post(file_size, file_path):
         ExpiresIn=EXPIRES_IN,
     )
     return url
+
+
+def create_mediaconvert_job(stream_list_id):
+    pass

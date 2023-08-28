@@ -62,7 +62,7 @@ INSTALLED_APPS = [
     "storages",
     # Local apps
     "authentication",
-    "upload",
+    "streamlist",
 ]
 
 MIDDLEWARE = [
@@ -212,3 +212,10 @@ CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+
+################################################################################
+# MediaConvert
+AWS_MC_ACCESS_KEY_ID = os.environ["AWS_MC_ACCESS_KEY_ID"]
+AWS_MC_SECRET_ACCESS_KEY = os.environ["AWS_MC_SECRET_ACCESS_KEY"]
+AWS_MC_ENDPOINT_URL = os.environ["AWS_MC_ENDPOINT_URL"]
+AWS_MC_ROLE_ARN = os.environ["AWS_MC_ROLE_ARN"]
