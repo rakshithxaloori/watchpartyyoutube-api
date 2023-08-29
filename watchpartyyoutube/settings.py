@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "storages",
     # Local apps
+    "health",
     "authentication",
     "streamlist",
 ]
@@ -219,3 +220,9 @@ AWS_MC_ACCESS_KEY_ID = os.environ["AWS_MC_ACCESS_KEY_ID"]
 AWS_MC_SECRET_ACCESS_KEY = os.environ["AWS_MC_SECRET_ACCESS_KEY"]
 AWS_MC_ENDPOINT_URL = os.environ["AWS_MC_ENDPOINT_URL"]
 AWS_MC_ROLE_ARN = os.environ["AWS_MC_ROLE_ARN"]
+
+################################################################################
+# SNS
+AWS_SNS_ACCESS_KEY_ID = os.environ["AWS_SNS_ACCESS_KEY_ID"]
+AWS_SNS_SECRET_ACCESS_KEY = os.environ["AWS_SNS_SECRET_ACCESS_KEY"]
+AWS_SNS_TOPIC_ARN = os.environ["AWS_SNS_TOPIC_ARN"]

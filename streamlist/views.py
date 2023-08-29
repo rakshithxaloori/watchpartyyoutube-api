@@ -1,8 +1,10 @@
 import hashlib
+import json
 
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.conf import settings
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -16,11 +18,13 @@ from rest_framework.decorators import (
 from authentication.middleware import CustomAuthentication
 from watchpartyyoutube.utils import BAD_REQUEST_RESPONSE
 from streamlist.utils import create_presigned_s3_post
-from streamlist.models import StreamList, Video
+from streamlist.models import StreamList, Video, MediaConvertJob, StreamVideo
 from streamlist.tasks import check_streamlist_status_task
+from streamlist.clients import sns_client
 
 MAX_UPLOADS_COUNT = 30
 MAX_FILE_SIZE = 1024 * 1024 * 1024 * 10  # 10 GB
+AWS_SNS_TOPIC_ARN = settings.AWS_SNS_TOPIC_ARN
 
 
 @api_view(["POST"])
@@ -114,3 +118,58 @@ def success_view(request):
         },
         status=status.HTTP_200_OK,
     )
+
+
+@csrf_exempt
+def mediaconvert_webhook_view(request):
+    if request.method == "POST":
+        try:
+            json_data = json.loads(request.body)
+            if json_data["Type"] == "SubscriptionConfirmation":
+                # Confirm subscription
+                response = sns_client.confirm_subscription(
+                    TopicArn=AWS_SNS_TOPIC_ARN, Token=json_data["Token"]
+                )
+                if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+                    print("SNS subscription confirmation failed")
+
+            else:
+                # Process message
+                message = json.loads(json_data["Message"])
+                job_id = message["detail"]["jobId"]
+                status = message["detail"]["status"]
+                print(f"MediaConvert job {job_id} status: {status}")
+                job = MediaConvertJob.objects.get(job_id=job_id)
+                if status in ["PROGRESSING", "COMPLETE", "ERROR"]:
+                    print("Updating MediaConvertJob status", message["detail"])
+                    if status == "PROGRESSING":
+                        job.status = MediaConvertJob.PROGRESSING
+                    elif status == "COMPLETE":
+                        job.status = MediaConvertJob.COMPLETED
+                        duration_in_ms = message["detail"]["outputGroupDetails"][0][
+                            "outputDetails"
+                        ][0]["durationInMs"]
+                        output_path = message["detail"]["outputGroupDetails"][0][
+                            "outputDetails"
+                        ][0]["outputFilePaths"][0]
+                        output_path = output_path.split("/", 3)[3]
+                        # Create a new StreamVideo instance
+                        StreamVideo.objects.create(
+                            user=job.stream_list.user,
+                            stream_list=job.stream_list,
+                            path=output_path,
+                            duration_in_ms=duration_in_ms,
+                        )
+                    elif status == "ERROR":
+                        job.status = MediaConvertJob.ERROR
+                        job.error_message = message["detail"]["errorMessage"]
+
+                    job.save()
+
+            return HttpResponse(status=200)
+
+        except Exception as e:
+            print("Error processing SNS message:", str(e))
+            return HttpResponse(status=200)
+    else:
+        return HttpResponse(status=405)  # Method Not Allowed

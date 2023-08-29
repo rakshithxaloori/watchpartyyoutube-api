@@ -12,7 +12,7 @@ class StreamList(models.Model):
 
     STATUS_CHOICES = [
         (QUEUED, "Queued"),
-        (PROCESSING, "Progressing"),
+        (PROCESSING, "Processing"),
         (READY, "Ready"),
         (ERROR, "Error"),
     ]
@@ -95,6 +95,9 @@ class MediaConvertJob(models.Model):
     )
     error_message = models.CharField(max_length=1000, null=True, blank=True)
 
+    def __str__(self):
+        return f"{self.stream_list.title} | {self.status}"
+
     class Meta:
         verbose_name = "MediaConvertJob"
 
@@ -102,11 +105,11 @@ class MediaConvertJob(models.Model):
 class StreamVideo(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    stream_list = models.ForeignKey(StreamList, on_delete=models.CASCADE)
+    stream_list = models.OneToOneField(StreamList, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    size = models.IntegerField()
     path = models.URLField()
+    duration_in_ms = models.PositiveIntegerField()
 
     class Meta:
         verbose_name = "StreamVideo"

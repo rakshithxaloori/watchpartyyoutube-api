@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/dev/Dockerfile
+    command: bash -c "python manage.py migrate --noinput &&
+      python manage.py collectstatic --noinput &&
+      daphne -b 0.0.0.0 -p 8000 watchpartyyoutube.asgi:application"
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "8000:8000"
+    restart: on-failure
+
+  nginx:
+    build: docker/dev/nginx
+    ports:
+      - "80:80"
+    restart: on-failure
+    volumes:
+      - ./static:/usr/src/app/static
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: curl --fail http://localhost/ht/ || exit 1
+      interval: 30s
+      retries: 10
+      start_period: 30s
+      timeout: 10s
+
+  celery:
+    build:
+      context: .
+      dockerfile: docker/dev/Dockerfile
+    command: celery -A watchpartyyoutube worker -l INFO --uid=nobody --gid=nogroup -Q celery
+    volumes:
+      - .:/usr/src/app
+    restart: on-failure
+    depends_on:
+      nginx:
+        condition: service_healthy
+
+volumes:
+  static:
+
+networks:
+  mynet:
+    external: true

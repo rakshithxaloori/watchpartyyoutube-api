@@ -48,7 +48,7 @@ def create_mediaconvert_job_task(stream_list_id):
     file_s3_urls = [f"s3://{AWS_INPUT_BUCKET_NAME}/{video.path}" for video in videos]
 
     # Specify the job settings
-    output_filename = f"{stream_list.user.username}/{stream_list.id}.mp4"
+    output_filename = f"{stream_list.user.username}/{stream_list.id}"
     job_settings = {
         "TimecodeConfig": {"Source": "ZEROBASED"},
         "OutputGroups": [
@@ -106,6 +106,7 @@ def create_mediaconvert_job_task(stream_list_id):
 
     # Create the job
     job = mediaconvert_client.create_job(
+        AccelerationSettings={"Mode": "PREFERRED"},
         Role=AWS_MC_ROLE_ARN,
         Settings=job_settings,
     )

@@ -29,6 +29,7 @@ if os.environ["CI_CD_STAGE"] == "testing" or os.environ["CI_CD_STAGE"] == "produ
 
 urlpatterns = [
     path("{}/".format(admin_url), admin.site.urls),
+    path("ht/", include("health.urls")),
     path("authentication/", include("authentication.urls")),
     path("streamlist/", include("streamlist.urls")),
 ]

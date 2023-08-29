@@ -17,3 +17,10 @@ mediaconvert_client = boto3.client(
     endpoint_url=settings.AWS_MC_ENDPOINT_URL,
     region_name=settings.AWS_DEFAULT_REGION,
 )
+
+sns_client = boto3.client(
+    "sns",
+    aws_access_key_id=settings.AWS_SNS_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_SNS_SECRET_ACCESS_KEY,
+    region_name=settings.AWS_DEFAULT_REGION,
+)
