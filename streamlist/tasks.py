@@ -3,8 +3,9 @@ import boto3
 from django.conf import settings
 
 from watchpartyyoutube.celery import app as celery_app
-from streamlist.clients import s3_client, mediaconvert_client
-from streamlist.models import StreamList, Video, MediaConvertJob
+from streamlist.clients import s3_client, mediaconvert_client, medialive_client
+from streamlist.models import StreamList, Video, MediaConvertJob, MediaLiveChannel
+from streamlist.utils import get_mediaconvert_job_settings, create_medialive_channel
 
 AWS_INPUT_BUCKET_NAME = settings.AWS_INPUT_BUCKET_NAME
 AWS_OUTPUT_BUCKET_NAME = settings.AWS_OUTPUT_BUCKET_NAME
@@ -49,61 +50,7 @@ def create_mediaconvert_job_task(stream_list_id):
 
     # Specify the job settings
     output_filename = f"{stream_list.user.username}/{stream_list.id}"
-    job_settings = {
-        "TimecodeConfig": {"Source": "ZEROBASED"},
-        "OutputGroups": [
-            {
-                "CustomName": output_filename,
-                "Name": "File Group",
-                "Outputs": [
-                    {
-                        "ContainerSettings": {"Container": "MP4", "Mp4Settings": {}},
-                        "VideoDescription": {
-                            "CodecSettings": {
-                                "Codec": "H_264",
-                                "H264Settings": {
-                                    "FramerateDenominator": 1,
-                                    "MaxBitrate": 8000000,
-                                    "FramerateControl": "SPECIFIED",
-                                    "RateControlMode": "QVBR",
-                                    "FramerateNumerator": 30,
-                                    "SceneChangeDetect": "TRANSITION_DETECTION",
-                                },
-                            }
-                        },
-                        "AudioDescriptions": [
-                            {
-                                "CodecSettings": {
-                                    "Codec": "AAC",
-                                    "AacSettings": {
-                                        "Bitrate": 96000,
-                                        "CodingMode": "CODING_MODE_2_0",
-                                        "SampleRate": 48000,
-                                    },
-                                }
-                            }
-                        ],
-                    }
-                ],
-                "OutputGroupSettings": {
-                    "Type": "FILE_GROUP_SETTINGS",
-                    "FileGroupSettings": {
-                        "Destination": f"s3://{AWS_OUTPUT_BUCKET_NAME}/{output_filename}"
-                    },
-                },
-            }
-        ],
-        "Inputs": [
-            {
-                "AudioSelectors": {"Audio Selector 1": {"DefaultSelection": "DEFAULT"}},
-                "VideoSelector": {},
-                "TimecodeSource": "ZEROBASED",
-                "FileInput": url,
-            }
-            for url in file_s3_urls
-        ],
-    }
-
+    job_settings = get_mediaconvert_job_settings(file_s3_urls, output_filename)
     # Create the job
     job = mediaconvert_client.create_job(
         AccelerationSettings={"Mode": "PREFERRED"},
@@ -122,3 +69,90 @@ def create_mediaconvert_job_task(stream_list_id):
         stream_list=stream_list,
         job_id=job["Job"]["Id"],
     )
+
+
+@celery_app.task
+def create_channel_task(stream_list_id):
+    try:
+        stream_list = StreamList.objects.get(id=stream_list_id)
+        input_name = f"{stream_list.user.username}_{stream_list.id}"
+        channel_name = f"{stream_list.user.username}_{stream_list.id}"
+        stream_key = stream_list.stream_key
+        audio_description_name = f"{stream_list.user.username}_{stream_list.id}"
+        video_description_name = f"{stream_list.user.username}_{stream_list.id}"
+
+        stream_video = stream_list.stream_video
+
+        # Create an input
+        input_s3_url = "s3ssl://{}/{}".format(AWS_OUTPUT_BUCKET_NAME, stream_video.path)
+        input_response = medialive_client.create_input(
+            Name=input_name,
+            Type="MP4_FILE",
+            Sources=[
+                {"Url": input_s3_url},
+            ],
+        )
+        input_id = input_response["Input"]["Id"]
+
+        # Create a MediaLiveChannel instance
+        medialive_channel = MediaLiveChannel.objects.create(
+            stream_list=stream_list,
+            input_id=input_id,
+            stream_key=stream_key,
+            audio_description_name=audio_description_name,
+            video_description_name=video_description_name,
+        )
+
+        # Create a channel
+        channel_id = create_medialive_channel(
+            channel_name,
+            input_id,
+            stream_key,
+            audio_description_name,
+            video_description_name,
+        )
+        print("Channel created: ", channel_id)
+
+        # Update the medialive_channel instance
+        medialive_channel.channel_id = channel_id
+        medialive_channel.save(update_fields=["channel_id"])
+
+    except StreamList.DoesNotExist:
+        return
+
+
+@celery_app.task
+def start_channel_task(channel_id):
+    # Triggered after the channel is created
+    try:
+        medialive_client.start_channel(ChannelId=channel_id)
+    except Exception as e:
+        print(e)
+        return
+
+
+@celery_app.task
+def stop_channel_task(channel_id):
+    try:
+        medialive_client.stop_channel(ChannelId=channel_id)
+    except Exception as e:
+        print(e)
+        return
+
+
+@celery_app.task
+def delete_channel_task(channel_id):
+    try:
+        medialive_client.delete_channel(ChannelId=channel_id)
+    except Exception as e:
+        print(e)
+        return
+
+
+@celery_app.task
+def delete_input_task(input_id):
+    try:
+        medialive_client.delete_input(InputId=input_id)
+    except Exception as e:
+        print(e)
+        return

@@ -18,9 +18,23 @@ from rest_framework.decorators import (
 from authentication.middleware import CustomAuthentication
 from watchpartyyoutube.utils import BAD_REQUEST_RESPONSE
 from streamlist.utils import create_presigned_s3_post
-from streamlist.models import StreamList, Video, MediaConvertJob, StreamVideo
-from streamlist.tasks import check_streamlist_status_task
+from streamlist.models import (
+    StreamList,
+    Video,
+    MediaConvertJob,
+    StreamVideo,
+    MediaLiveChannel,
+)
+from streamlist.tasks import (
+    check_streamlist_status_task,
+    create_channel_task,
+    start_channel_task,
+    stop_channel_task,
+    delete_channel_task,
+    delete_input_task,
+)
 from streamlist.clients import sns_client
+from streamlist.serializers import StreamListSerializer
 
 MAX_UPLOADS_COUNT = 30
 MAX_FILE_SIZE = 1024 * 1024 * 1024 * 10  # 10 GB
@@ -120,6 +134,53 @@ def success_view(request):
     )
 
 
+@api_view(["GET"])
+@authentication_classes([CustomAuthentication])
+@permission_classes([IsAuthenticated])
+def get_streamlists_view(request):
+    stream_lists = StreamList.objects.filter(user=request.user).order_by("-created_at")[
+        :5
+    ]
+    print("STREAM LISTS", stream_lists)
+    stream_lists_list = StreamListSerializer(stream_lists, many=True).data
+
+    return JsonResponse(
+        {
+            "detail": "StreamLists retrieved",
+            "payload": {
+                "stream_lists": stream_lists_list,
+            },
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@authentication_classes([CustomAuthentication])
+@permission_classes([IsAuthenticated])
+def start_stream_view(request):
+    stream_list_id = request.data.get("stream_list_id", None)
+    stream_key = request.data.get("stream_key", None)
+    if stream_list_id is None or stream_key is None:
+        return BAD_REQUEST_RESPONSE
+    try:
+        stream_list = StreamList.objects.get(id=stream_list_id)
+        stream_list.stream_key = stream_key
+        stream_list.save(update_fields=["stream_key"])
+        create_channel_task.delay(stream_list_id)
+        return JsonResponse(
+            {
+                "detail": "StreamList started",
+                "payload": {
+                    "stream_list_id": stream_list.id,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+    except StreamList.DoesNotExist:
+        return BAD_REQUEST_RESPONSE
+
+
 @csrf_exempt
 def mediaconvert_webhook_view(request):
     if request.method == "POST":
@@ -136,35 +197,72 @@ def mediaconvert_webhook_view(request):
             else:
                 # Process message
                 message = json.loads(json_data["Message"])
-                job_id = message["detail"]["jobId"]
-                status = message["detail"]["status"]
-                print(f"MediaConvert job {job_id} status: {status}")
-                job = MediaConvertJob.objects.get(job_id=job_id)
-                if status in ["PROGRESSING", "COMPLETE", "ERROR"]:
-                    print("Updating MediaConvertJob status", message["detail"])
-                    if status == "PROGRESSING":
-                        job.status = MediaConvertJob.PROGRESSING
-                    elif status == "COMPLETE":
-                        job.status = MediaConvertJob.COMPLETED
-                        duration_in_ms = message["detail"]["outputGroupDetails"][0][
-                            "outputDetails"
-                        ][0]["durationInMs"]
-                        output_path = message["detail"]["outputGroupDetails"][0][
-                            "outputDetails"
-                        ][0]["outputFilePaths"][0]
-                        output_path = output_path.split("/", 3)[3]
-                        # Create a new StreamVideo instance
-                        StreamVideo.objects.create(
-                            user=job.stream_list.user,
-                            stream_list=job.stream_list,
-                            path=output_path,
-                            duration_in_ms=duration_in_ms,
-                        )
-                    elif status == "ERROR":
-                        job.status = MediaConvertJob.ERROR
-                        job.error_message = message["detail"]["errorMessage"]
+                if message["source"] == "aws.mediaconvert":
+                    job_id = message["detail"]["jobId"]
+                    status = message["detail"]["status"]
+                    print(f"MediaConvert job {job_id} status: {status}")
+                    job = MediaConvertJob.objects.get(job_id=job_id)
+                    if status in ["PROGRESSING", "COMPLETE", "ERROR"]:
+                        print("Updating MediaConvertJob status", message["detail"])
+                        if status == "PROGRESSING":
+                            job.status = MediaConvertJob.PROGRESSING
+                        elif status == "COMPLETE":
+                            job.status = MediaConvertJob.COMPLETED
+                            duration_in_ms = message["detail"]["outputGroupDetails"][0][
+                                "outputDetails"
+                            ][0]["durationInMs"]
+                            output_path = message["detail"]["outputGroupDetails"][0][
+                                "outputDetails"
+                            ][0]["outputFilePaths"][0]
+                            output_path = output_path.split("/", 3)[3]
+                            # Create a new StreamVideo instance
+                            StreamVideo.objects.create(
+                                user=job.stream_list.user,
+                                stream_list=job.stream_list,
+                                path=output_path,
+                                duration_in_ms=duration_in_ms,
+                            )
+                        elif status == "ERROR":
+                            job.status = MediaConvertJob.ERROR
+                            job.error_message = message["detail"]["errorMessage"]
 
-                    job.save()
+                        job.save()
+                elif message["source"] == "aws.medialive":
+                    print(message)
+                    channel_arn = message["detail"]["channel_arn"]
+                    try:
+                        channel_id = channel_arn.split(":")[-1]
+                        channel_state = message["detail"]["state"]
+
+                        medialive_channel = MediaLiveChannel.objects.get(
+                            channel_id=channel_id
+                        )
+
+                        if channel_state == "CREATED":
+                            medialive_channel.state = MediaLiveChannel.CREATED
+                            start_channel_task.delay(channel_id)
+                        elif channel_state == "RUNNING":
+                            medialive_channel.state = MediaLiveChannel.RUNNING
+                            duration_in_ms = (
+                                medialive_channel.stream_list.stream_video.duration_in_ms
+                            )
+                            stop_channel_task.apply_async(
+                                (channel_id), countdown=((duration_in_ms / 1000) + 60)
+                            )
+                        elif channel_state == "STOPPED":
+                            medialive_channel.state = MediaLiveChannel.STOPPED
+                            delete_channel_task.delay(channel_id)
+                        elif channel_state == "DELETED":
+                            medialive_channel.state = MediaLiveChannel.DELETED
+                            input_id = medialive_channel.input_id
+                            delete_input_task.delay(input_id)
+                        # TODO If the channel has failed, delete the channel
+
+                        medialive_channel.save(update_fields=["state"])
+
+                    except MediaLiveChannel.DoesNotExist:
+                        print("MediaLiveChannel does not exist", channel_arn)
+                        pass
 
             return HttpResponse(status=200)
 
@@ -173,3 +271,97 @@ def mediaconvert_webhook_view(request):
             return HttpResponse(status=200)
     else:
         return HttpResponse(status=405)  # Method Not Allowed
+
+
+# Channel Created
+{
+    "version": "0",
+    "id": "8414ed30-2189-3f27-7940-7863b747c755",
+    "detail-type": "MediaLive Channel State Change",
+    "source": "aws.medialive",
+    "account": "662294483096",
+    "time": "2023-08-30T10:03:48Z",
+    "region": "us-east-1",
+    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
+    "detail": {
+        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
+        "state": "CREATED",
+        "message": "Created channel",
+        "pipelines_running_count": 0,
+    },
+}
+
+# Channel Running
+{
+    "version": "0",
+    "id": "cb7611d1-94d0-e07c-9199-dfa0696b519b",
+    "detail-type": "MediaLive Channel State Change",
+    "source": "aws.medialive",
+    "account": "662294483096",
+    "time": "2023-08-30T10:05:59Z",
+    "region": "us-east-1",
+    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
+    "detail": {
+        "pipelines_running_count": 1,
+        "state": "RUNNING",
+        "pipeline": "0",
+        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
+        "message": "Pipeline started for channel",
+    },
+}
+
+# Channel Stopping
+{
+    "version": "0",
+    "id": "5ded23d4-bddd-b1ef-c2d7-3c72e8311236",
+    "detail-type": "MediaLive Channel State Change",
+    "source": "aws.medialive",
+    "account": "662294483096",
+    "time": "2023-08-30T10:08:46Z",
+    "region": "us-east-1",
+    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
+    "detail": {
+        "pipelines_running_count": 0,
+        "state": "STOPPING",
+        "pipeline": "0",
+        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
+        "message": "Stopping pipeline",
+    },
+}
+
+# Channel Stopped
+{
+    "version": "0",
+    "id": "7fca9e69-89ce-c82c-635c-f0694923efac",
+    "detail-type": "MediaLive Channel State Change",
+    "source": "aws.medialive",
+    "account": "662294483096",
+    "time": "2023-08-30T10:09:08Z",
+    "region": "us-east-1",
+    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
+    "detail": {
+        "pipelines_running_count": 0,
+        "state": "STOPPED",
+        "pipeline": "0",
+        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
+        "message": "Stop detected on pipeline",
+    },
+}
+
+# Channel Deleted
+{
+    "version": "0",
+    "id": "2f93a36e-2827-dc58-104b-5f5b0887a789",
+    "detail-type": "MediaLive Channel State Change",
+    "source": "aws.medialive",
+    "account": "662294483096",
+    "time": "2023-08-30T10:10:48Z",
+    "region": "us-east-1",
+    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
+    "detail": {
+        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
+        "state": "DELETED",
+        "message": "Deleted channel",
+        "pipelines_running_count": 0,
+    },
+}

@@ -226,3 +226,9 @@ AWS_MC_ROLE_ARN = os.environ["AWS_MC_ROLE_ARN"]
 AWS_SNS_ACCESS_KEY_ID = os.environ["AWS_SNS_ACCESS_KEY_ID"]
 AWS_SNS_SECRET_ACCESS_KEY = os.environ["AWS_SNS_SECRET_ACCESS_KEY"]
 AWS_SNS_TOPIC_ARN = os.environ["AWS_SNS_TOPIC_ARN"]
+
+################################################################################
+# MediaLive
+AWS_MEDIALIVE_ACCESS_KEY_ID = os.environ["AWS_MEDIALIVE_ACCESS_KEY_ID"]
+AWS_MEDIALIVE_SECRET_ACCESS_KEY = os.environ["AWS_MEDIALIVE_SECRET_ACCESS_KEY"]
+AWS_MEDIALIVE_ROLE_ARN = os.environ["AWS_MEDIALIVE_ROLE_ARN"]

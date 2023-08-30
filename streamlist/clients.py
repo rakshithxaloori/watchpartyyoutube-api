@@ -24,3 +24,10 @@ sns_client = boto3.client(
     aws_secret_access_key=settings.AWS_SNS_SECRET_ACCESS_KEY,
     region_name=settings.AWS_DEFAULT_REGION,
 )
+
+medialive_client = boto3.client(
+    "medialive",
+    aws_access_key_id=settings.AWS_MEDIALIVE_ACCESS_KEY_ID,
+    aws_secret_access_key=settings.AWS_MEDIALIVE_SECRET_ACCESS_KEY,
+    region_name=settings.AWS_DEFAULT_REGION,
+)

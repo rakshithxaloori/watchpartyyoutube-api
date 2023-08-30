@@ -8,12 +8,18 @@ class StreamList(models.Model):
     QUEUED = "Q"
     PROCESSING = "P"
     READY = "R"
+    STREAMING = "S"
+    FINISHED = "F"
+    CANCELLED = "C"
     ERROR = "E"
 
     STATUS_CHOICES = [
         (QUEUED, "Queued"),
         (PROCESSING, "Processing"),
         (READY, "Ready"),
+        (STREAMING, "Streaming"),
+        (FINISHED, "Finished"),
+        (CANCELLED, "Cancelled"),
         (ERROR, "Error"),
     ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -27,6 +33,7 @@ class StreamList(models.Model):
         choices=STATUS_CHOICES,
         default=QUEUED,
     )
+    stream_key = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username} | {self.title}"
@@ -84,7 +91,9 @@ class MediaConvertJob(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    stream_list = models.OneToOneField(StreamList, on_delete=models.CASCADE)
+    stream_list = models.OneToOneField(
+        StreamList, related_name="media_convert_job", on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     job_id = models.CharField(max_length=100)
@@ -105,11 +114,48 @@ class MediaConvertJob(models.Model):
 class StreamVideo(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    stream_list = models.OneToOneField(StreamList, on_delete=models.CASCADE)
+    stream_list = models.OneToOneField(
+        StreamList, related_name="stream_video", on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     path = models.URLField()
     duration_in_ms = models.PositiveIntegerField()
 
+    def __str__(self):
+        return f"{self.user.username} | {self.stream_list.title}"
+
     class Meta:
         verbose_name = "StreamVideo"
+
+
+class MediaLiveChannel(models.Model):
+    CREATED = "C"
+    RUNNING = "R"
+    STOPPING = "S"
+    STOPPED = "T"
+
+    STATUS_CHOICES = [
+        (CREATED, "Created"),
+        (RUNNING, "Running"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    stream_list = models.OneToOneField(
+        StreamList, related_name="media_live_channel", on_delete=models.CASCADE
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    channel_id = models.CharField(max_length=100, null=True, blank=True)
+    input_id = models.CharField(max_length=100)
+    stream_key = models.CharField(max_length=100)
+    audio_description_name = models.CharField(max_length=100)
+    video_description_name = models.CharField(max_length=100)
+    state = models.CharField(
+        max_length=1,
+        choices=STATUS_CHOICES,
+        default=CREATED,
+    )
+
+    class Meta:
+        verbose_name = "MediaLiveChannel"
