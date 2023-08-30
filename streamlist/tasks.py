@@ -4,7 +4,13 @@ from django.conf import settings
 
 from watchpartyyoutube.celery import app as celery_app
 from streamlist.clients import s3_client, mediaconvert_client, medialive_client
-from streamlist.models import StreamList, Video, MediaConvertJob, MediaLiveChannel
+from streamlist.models import (
+    StreamList,
+    StreamListStatus,
+    Video,
+    MediaConvertJob,
+    MediaLiveChannel,
+)
 from streamlist.utils import get_mediaconvert_job_settings, create_medialive_channel
 
 AWS_INPUT_BUCKET_NAME = settings.AWS_INPUT_BUCKET_NAME
@@ -60,9 +66,11 @@ def create_mediaconvert_job_task(stream_list_id):
 
     print("Job created: ", job["Job"]["Id"])
 
-    # Update the streamlist status
-    stream_list.status = StreamList.PROCESSING
-    stream_list.save(update_fields=["status"])
+    # Create new StreamListStatus
+    StreamListStatus.objects.create(
+        stream_list=stream_list,
+        status=StreamListStatus.PROCESSING,
+    )
 
     # Create a MediaConvertJob instance
     MediaConvertJob.objects.create(

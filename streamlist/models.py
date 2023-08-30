@@ -5,6 +5,22 @@ from authentication.models import User
 
 
 class StreamList(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    title = models.CharField(max_length=100)
+    description = models.CharField(max_length=1000)
+    stream_key = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user.username} | {self.title}"
+
+    class Meta:
+        verbose_name = "StreamList"
+
+
+class StreamListStatus(models.Model):
     QUEUED = "Q"
     PROCESSING = "P"
     READY = "R"
@@ -22,24 +38,25 @@ class StreamList(models.Model):
         (CANCELLED, "Cancelled"),
         (ERROR, "Error"),
     ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    stream_list = models.ForeignKey(
+        StreamList, related_name="stream_list_status", on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
-    title = models.CharField(max_length=100)
-    description = models.CharField(max_length=1000)
     status = models.CharField(
         max_length=1,
         choices=STATUS_CHOICES,
         default=QUEUED,
     )
-    stream_key = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.user.username} | {self.title}"
+        return f"{self.stream_list.title} | {self.status}"
 
     class Meta:
-        verbose_name = "StreamList"
+        verbose_name = "StreamListStatus"
+        ordering = ["-stream_list__created_at", "-created_at"]
 
 
 class Video(models.Model):
@@ -138,6 +155,8 @@ class MediaLiveChannel(models.Model):
     STATUS_CHOICES = [
         (CREATED, "Created"),
         (RUNNING, "Running"),
+        (STOPPING, "Stopping"),
+        (STOPPED, "Stopped"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -156,6 +175,9 @@ class MediaLiveChannel(models.Model):
         choices=STATUS_CHOICES,
         default=CREATED,
     )
+
+    def __str__(self):
+        return f"{self.stream_list.title} | {self.state}"
 
     class Meta:
         verbose_name = "MediaLiveChannel"

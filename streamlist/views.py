@@ -20,6 +20,7 @@ from watchpartyyoutube.utils import BAD_REQUEST_RESPONSE
 from streamlist.utils import create_presigned_s3_post
 from streamlist.models import (
     StreamList,
+    StreamListStatus,
     Video,
     MediaConvertJob,
     StreamVideo,
@@ -121,6 +122,9 @@ def success_view(request):
     if stream_list is None:
         return BAD_REQUEST_RESPONSE
 
+    StreamListStatus.objects.create(
+        stream_list=stream_list, status=StreamListStatus.QUEUED
+    )
     check_streamlist_status_task.delay(stream_list_id)
 
     return JsonResponse(
@@ -137,11 +141,10 @@ def success_view(request):
 @api_view(["GET"])
 @authentication_classes([CustomAuthentication])
 @permission_classes([IsAuthenticated])
-def get_streamlists_view(request):
+def list_streamlists_view(request):
     stream_lists = StreamList.objects.filter(user=request.user).order_by("-created_at")[
         :5
     ]
-    print("STREAM LISTS", stream_lists)
     stream_lists_list = StreamListSerializer(stream_lists, many=True).data
 
     return JsonResponse(
@@ -149,6 +152,28 @@ def get_streamlists_view(request):
             "detail": "StreamLists retrieved",
             "payload": {
                 "stream_lists": stream_lists_list,
+            },
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@authentication_classes([CustomAuthentication])
+@permission_classes([IsAuthenticated])
+def get_streamlist_view(request):
+    stream_list_id = request.data.get("stream_list_id", None)
+    stream_list = StreamList.objects.filter(id=stream_list_id).first()
+    if stream_list is None:
+        return BAD_REQUEST_RESPONSE
+
+    stream_list_data = StreamListSerializer(stream_list).data
+
+    return JsonResponse(
+        {
+            "detail": "StreamList retrieved",
+            "payload": {
+                "stream_list": stream_list_data,
             },
         },
         status=status.HTTP_200_OK,
@@ -202,6 +227,7 @@ def mediaconvert_webhook_view(request):
                     status = message["detail"]["status"]
                     print(f"MediaConvert job {job_id} status: {status}")
                     job = MediaConvertJob.objects.get(job_id=job_id)
+                    stream_list = job.stream_list
                     if status in ["PROGRESSING", "COMPLETE", "ERROR"]:
                         print("Updating MediaConvertJob status", message["detail"])
                         if status == "PROGRESSING":
@@ -217,10 +243,15 @@ def mediaconvert_webhook_view(request):
                             output_path = output_path.split("/", 3)[3]
                             # Create a new StreamVideo instance
                             StreamVideo.objects.create(
-                                user=job.stream_list.user,
-                                stream_list=job.stream_list,
+                                user=stream_list.user,
+                                stream_list=stream_list,
                                 path=output_path,
                                 duration_in_ms=duration_in_ms,
+                            )
+                            # Create new StreamListStatus
+                            StreamListStatus.objects.create(
+                                stream_list=stream_list,
+                                status=StreamListStatus.READY,
                             )
                         elif status == "ERROR":
                             job.status = MediaConvertJob.ERROR
@@ -246,11 +277,21 @@ def mediaconvert_webhook_view(request):
                             duration_in_ms = (
                                 medialive_channel.stream_list.stream_video.duration_in_ms
                             )
+                            # Create new StreamListStatus
+                            StreamListStatus.objects.create(
+                                stream_list=medialive_channel.stream_list,
+                                status=StreamListStatus.STREAMING,
+                            )
                             stop_channel_task.apply_async(
                                 (channel_id), countdown=((duration_in_ms / 1000) + 60)
                             )
                         elif channel_state == "STOPPED":
                             medialive_channel.state = MediaLiveChannel.STOPPED
+                            # Create new StreamListStatus
+                            StreamListStatus.objects.create(
+                                stream_list=medialive_channel.stream_list,
+                                status=StreamListStatus.FINISHED,
+                            )
                             delete_channel_task.delay(channel_id)
                         elif channel_state == "DELETED":
                             medialive_channel.state = MediaLiveChannel.DELETED
