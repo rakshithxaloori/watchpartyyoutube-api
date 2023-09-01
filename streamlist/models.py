@@ -151,12 +151,14 @@ class MediaLiveChannel(models.Model):
     RUNNING = "R"
     STOPPING = "S"
     STOPPED = "T"
+    DELETED = "D"
 
     STATUS_CHOICES = [
         (CREATED, "Created"),
         (RUNNING, "Running"),
         (STOPPING, "Stopping"),
         (STOPPED, "Stopped"),
+        (DELETED, "Deleted"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

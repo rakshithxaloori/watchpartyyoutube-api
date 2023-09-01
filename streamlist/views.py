@@ -283,7 +283,11 @@ def mediaconvert_webhook_view(request):
                                 status=StreamListStatus.STREAMING,
                             )
                             stop_channel_task.apply_async(
-                                (channel_id), countdown=((duration_in_ms / 1000) + 60)
+                                (channel_id,),
+                                eta=timezone.now()
+                                + timezone.timedelta(milliseconds=duration_in_ms)
+                                # a minute after the stream is supposed to end
+                                + timezone.timedelta(minutes=1),
                             )
                         elif channel_state == "STOPPED":
                             medialive_channel.state = MediaLiveChannel.STOPPED

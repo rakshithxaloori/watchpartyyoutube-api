@@ -164,3 +164,6 @@ def delete_input_task(input_id):
     except Exception as e:
         print(e)
         return
+
+
+# TODO delete s3 files after they are used

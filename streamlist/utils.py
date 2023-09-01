@@ -44,7 +44,7 @@ def get_mediaconvert_job_settings(file_s3_urls, output_filename):
                                 "Codec": "H_264",
                                 "H264Settings": {
                                     "FramerateDenominator": 1,
-                                    "MaxBitrate": 8000000,
+                                    "MaxBitrate": 20 * 1000 * 1000,
                                     "FramerateControl": "SPECIFIED",
                                     "RateControlMode": "QVBR",
                                     "FramerateNumerator": 30,
