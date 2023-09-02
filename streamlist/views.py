@@ -35,7 +35,7 @@ from streamlist.tasks import (
     delete_input_task,
 )
 from streamlist.clients import sns_client
-from streamlist.serializers import StreamListSerializer
+from streamlist.serializers import StreamListShortSerializer, StreamListLongSerializer
 
 MAX_UPLOADS_COUNT = 30
 MAX_FILE_SIZE = 1024 * 1024 * 1024 * 10  # 10 GB
@@ -145,7 +145,7 @@ def list_streamlists_view(request):
     stream_lists = StreamList.objects.filter(user=request.user).order_by("-created_at")[
         :5
     ]
-    stream_lists_list = StreamListSerializer(stream_lists, many=True).data
+    stream_lists_list = StreamListShortSerializer(stream_lists, many=True).data
 
     return JsonResponse(
         {
@@ -167,13 +167,37 @@ def get_streamlist_view(request):
     if stream_list is None:
         return BAD_REQUEST_RESPONSE
 
-    stream_list_data = StreamListSerializer(stream_list).data
+    stream_list_data = StreamListLongSerializer(stream_list).data
 
     return JsonResponse(
         {
             "detail": "StreamList retrieved",
             "payload": {
                 "stream_list": stream_list_data,
+            },
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@authentication_classes([CustomAuthentication])
+@permission_classes([IsAuthenticated])
+def get_streamlist_status_view(request):
+    stream_list_id = request.data.get("stream_list_id", None)
+    stream_list = StreamList.objects.filter(id=stream_list_id).first()
+    if stream_list is None:
+        return BAD_REQUEST_RESPONSE
+
+    stream_list_status = (
+        stream_list.stream_list_status.all().order_by("-created_at").first().status
+    )
+
+    return JsonResponse(
+        {
+            "detail": "StreamList status retrieved",
+            "payload": {
+                "stream_list_status": stream_list_status,
             },
         },
         status=status.HTTP_200_OK,

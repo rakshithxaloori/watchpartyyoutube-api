@@ -72,7 +72,9 @@ class Video(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    stream_list = models.ForeignKey(StreamList, on_delete=models.CASCADE)
+    stream_list = models.ForeignKey(
+        StreamList, related_name="videos", on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     ordering = models.PositiveSmallIntegerField()
