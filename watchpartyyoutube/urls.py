@@ -32,6 +32,7 @@ urlpatterns = [
     path("ht/", include("health.urls")),
     path("authentication/", include("authentication.urls")),
     path("streamlist/", include("streamlist.urls")),
+    path("payments/", include("payments.urls")),
 ]
 
 if settings.DEBUG:

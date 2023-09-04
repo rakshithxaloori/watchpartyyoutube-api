@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "health",
     "authentication",
     "streamlist",
+    "payments",
 ]
 
 MIDDLEWARE = [
@@ -232,3 +233,11 @@ AWS_SNS_TOPIC_ARN = os.environ["AWS_SNS_TOPIC_ARN"]
 AWS_MEDIALIVE_ACCESS_KEY_ID = os.environ["AWS_MEDIALIVE_ACCESS_KEY_ID"]
 AWS_MEDIALIVE_SECRET_ACCESS_KEY = os.environ["AWS_MEDIALIVE_SECRET_ACCESS_KEY"]
 AWS_MEDIALIVE_ROLE_ARN = os.environ["AWS_MEDIALIVE_ROLE_ARN"]
+
+################################################################################
+# Stripe
+STRIPE_SECRET_KEY = os.environ["STRIPE_SECRET_KEY"]
+STRIPE_WEBHOOK_SECRET = os.environ["STRIPE_WEBHOOK_SECRET"]
+STRIPE_BASIC_PRICE_ID = os.environ["STRIPE_BASIC_PRICE_ID"]
+STRIPE_PRO_PRICE_ID = os.environ["STRIPE_PRO_PRICE_ID"]
+STRIPE_ADDON_PRICE_ID = os.environ["STRIPE_ADDON_PRICE_ID"]
