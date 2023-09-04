@@ -230,6 +230,33 @@ def start_stream_view(request):
         return BAD_REQUEST_RESPONSE
 
 
+@api_view(["POST"])
+@authentication_classes([CustomAuthentication])
+@permission_classes([IsAuthenticated])
+def stop_stream_view(request):
+    stream_list_id = request.data.get("stream_list_id", None)
+    if stream_list_id is None:
+        return BAD_REQUEST_RESPONSE
+    try:
+        stream_list = StreamList.objects.get(id=stream_list_id)
+        latest_status = (
+            stream_list.stream_list_status.all().order_by("-created_at").first()
+        )
+        if latest_status.status == StreamListStatus.STREAMING:
+            stop_channel_task.delay(stream_list.media_live_channel.channel_id)
+        return JsonResponse(
+            {
+                "detail": "Stopping stream",
+                "payload": {
+                    "stream_list_id": stream_list.id,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+    except StreamList.DoesNotExist:
+        return BAD_REQUEST_RESPONSE
+
+
 @csrf_exempt
 def mediaconvert_webhook_view(request):
     if request.method == "POST":

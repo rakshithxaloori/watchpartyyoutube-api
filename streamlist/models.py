@@ -78,7 +78,7 @@ class Video(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     ordering = models.PositiveSmallIntegerField()
-    title = models.CharField(max_length=100)
+    title = models.TextField()
     size = models.IntegerField()
     path = models.URLField()
     status = models.CharField(

@@ -83,6 +83,11 @@ def create_mediaconvert_job_task(stream_list_id):
 def create_channel_task(stream_list_id):
     try:
         stream_list = StreamList.objects.get(id=stream_list_id)
+        latest_status = (
+            stream_list.stream_list_status.all().order_by("-created_at").first()
+        )
+        if latest_status.status != StreamListStatus.READY:
+            return
         input_name = f"{stream_list.user.username}_{stream_list.id}"
         channel_name = f"{stream_list.user.username}_{stream_list.id}"
         stream_key = stream_list.stream_key

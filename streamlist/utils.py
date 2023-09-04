@@ -40,17 +40,18 @@ def get_mediaconvert_job_settings(file_s3_urls, output_filename):
                     {
                         "ContainerSettings": {"Container": "MP4", "Mp4Settings": {}},
                         "VideoDescription": {
+                            "Height": 1080,
                             "CodecSettings": {
                                 "Codec": "H_264",
                                 "H264Settings": {
                                     "FramerateDenominator": 1,
-                                    "MaxBitrate": 20 * 1000 * 1000,
+                                    "MaxBitrate": 8 * 1000 * 1000,
                                     "FramerateControl": "SPECIFIED",
                                     "RateControlMode": "QVBR",
                                     "FramerateNumerator": 30,
                                     "SceneChangeDetect": "TRANSITION_DETECTION",
                                 },
-                            }
+                            },
                         },
                         "AudioDescriptions": [
                             {

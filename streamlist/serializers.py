@@ -33,7 +33,7 @@ class StreamListLongSerializer(ModelSerializer):
 
     class Meta:
         model = StreamList
-        fields = ["id", "created_at", "title", "status", "videos"]
+        fields = ["id", "created_at", "title", "description", "status", "videos"]
         read_only_fields = ["id", "created_at", "title"]
 
     def get_status(self, obj):
