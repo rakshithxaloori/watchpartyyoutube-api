@@ -36,6 +36,7 @@ from streamlist.tasks import (
 )
 from streamlist.clients import sns_client
 from streamlist.serializers import StreamListShortSerializer, StreamListLongSerializer
+from payments.middleware import subscription_middleware
 
 MAX_UPLOADS_COUNT = 30
 MAX_FILE_SIZE = 1024 * 1024 * 1024 * 10  # 10 GB
@@ -45,6 +46,7 @@ AWS_SNS_TOPIC_ARN = settings.AWS_SNS_TOPIC_ARN
 @api_view(["POST"])
 @authentication_classes([CustomAuthentication])
 @permission_classes([IsAuthenticated])
+@subscription_middleware
 def create_streamlist_view(request):
     files = request.data.get("files", None)
     if (
@@ -118,7 +120,9 @@ def success_view(request):
     if stream_list_id is None:
         return BAD_REQUEST_RESPONSE
 
-    stream_list = StreamList.objects.filter(id=stream_list_id).first()
+    stream_list = StreamList.objects.filter(
+        id=stream_list_id, user=request.user
+    ).first()
     if stream_list is None:
         return BAD_REQUEST_RESPONSE
 
@@ -163,7 +167,9 @@ def list_streamlists_view(request):
 @permission_classes([IsAuthenticated])
 def get_streamlist_view(request):
     stream_list_id = request.data.get("stream_list_id", None)
-    stream_list = StreamList.objects.filter(id=stream_list_id).first()
+    stream_list = StreamList.objects.filter(
+        id=stream_list_id, user=request.user
+    ).first()
     if stream_list is None:
         return BAD_REQUEST_RESPONSE
 
@@ -185,7 +191,9 @@ def get_streamlist_view(request):
 @permission_classes([IsAuthenticated])
 def get_streamlist_status_view(request):
     stream_list_id = request.data.get("stream_list_id", None)
-    stream_list = StreamList.objects.filter(id=stream_list_id).first()
+    stream_list = StreamList.objects.filter(
+        id=stream_list_id, user=request.user
+    ).first()
     if stream_list is None:
         return BAD_REQUEST_RESPONSE
 
@@ -207,13 +215,14 @@ def get_streamlist_status_view(request):
 @api_view(["POST"])
 @authentication_classes([CustomAuthentication])
 @permission_classes([IsAuthenticated])
+@subscription_middleware
 def start_stream_view(request):
     stream_list_id = request.data.get("stream_list_id", None)
     stream_key = request.data.get("stream_key", None)
     if stream_list_id is None or stream_key is None:
         return BAD_REQUEST_RESPONSE
     try:
-        stream_list = StreamList.objects.get(id=stream_list_id)
+        stream_list = StreamList.objects.get(id=stream_list_id, user=request.user)
         stream_list.stream_key = stream_key
         stream_list.save(update_fields=["stream_key"])
         create_channel_task.delay(stream_list_id)
@@ -238,7 +247,7 @@ def stop_stream_view(request):
     if stream_list_id is None:
         return BAD_REQUEST_RESPONSE
     try:
-        stream_list = StreamList.objects.get(id=stream_list_id)
+        stream_list = StreamList.objects.get(id=stream_list_id, user=request.user)
         latest_status = (
             stream_list.stream_list_status.all().order_by("-created_at").first()
         )

@@ -51,64 +51,69 @@ def webhook(request):
         )
         # Get the type of webhook poll sent - used to check the status of PaymentIntents.
         poll_type = event.type
-        payment = event.data.object
-        price_id = payment.plan.id
+        data = event.data.object
+
         print("poll_type: {}".format(poll_type))
-        print("payment: {}".format(payment))
+
     except Exception:
         return HttpResponse(status=400)
 
-    if (
-        poll_type == "payment_intent.succeeded"
-        and isinstance(payment, stripe.PaymentIntent)
-        and price_id == STRIPE_ADDON_PRICE_ID
-    ):
-        quantity = payment.metadata["quantity"]
-        customer_id = payment.customer
-        try:
-            customer_instance = Customer.objects.get(stripe_customer_id=customer_id)
-            customer_instance.credit_hours += quantity
-            customer_instance.save(update_fields=["credit_hours"])
-        except Customer.DoesNotExist:
-            del_customer_task.delay(customer_id)
+    if poll_type == "payment_intent.succeeded":
+        print(data)
 
-    elif (
-        poll_type == "customer.payments.updated"
-        and isinstance(payment, stripe.Subscription)
-        and payment.status == "active"
-        and price_id in [STRIPE_BASIC_PRICE_ID, STRIPE_PRO_PRICE_ID]
-    ):
-        try:
-            stripe_customer = stripe.Customer.retrieve(payment.customer)
-            user = User.objects.get(email=stripe_customer.email)
-            credit_hours = 0
-            if price_id == STRIPE_BASIC_PRICE_ID:
-                credit_hours = 12
-            elif price_id == STRIPE_PRO_PRICE_ID:
-                credit_hours = 36
+        # price_id = None
+        # if price_id == STRIPE_ADDON_PRICE_ID:
+        #     quantity = payment.metadata["quantity"]
+        #     customer_id = payment.customer
+        #     try:
+        #         customer_instance = Customer.objects.get(stripe_customer_id=customer_id)
+        #         customer_instance.credit_hours += quantity
+        #         customer_instance.save(update_fields=["credit_hours"])
+        #     except Customer.DoesNotExist:
+        #         del_customer_task.delay(customer_id)
 
-            Customer.objects.update_or_create(
-                user=user,
-                defaults={
-                    "stripe_customer_id": payment.customer,
-                    "stripe_subscription_id": payment.id,
-                    "current_period_end": make_aware(
-                        datetime.datetime.fromtimestamp(payment.current_period_end)
-                    ),
-                    "cancel_at_period_end": payment.cancel_at_period_end,
-                    "credit_hours": credit_hours,
-                },
+    elif poll_type == "customer.subscription.updated" and data.status == "active":
+        price_id = data.plan.id
+        if price_id in [STRIPE_BASIC_PRICE_ID, STRIPE_PRO_PRICE_ID]:
+            subscription_id = data.id
+            customer_id = data.customer
+            current_period_end = data.current_period_end
+            cancel_at_period_end = data.cancel_at_period_end
+            try:
+                stripe_customer = stripe.Customer.retrieve(customer_id)
+                user = User.objects.get(email=stripe_customer.email)
+                credit_hours = 0
+                if price_id == STRIPE_BASIC_PRICE_ID:
+                    credit_hours = 12
+                elif price_id == STRIPE_PRO_PRICE_ID:
+                    credit_hours = 36
+
+                Customer.objects.update_or_create(
+                    user=user,
+                    defaults={
+                        "stripe_customer_id": customer_id,
+                        "stripe_subscription_id": subscription_id,
+                        "current_period_end": make_aware(
+                            datetime.datetime.fromtimestamp(current_period_end)
+                        ),
+                        "cancel_at_period_end": cancel_at_period_end,
+                        "credit_hours": credit_hours,
+                    },
+                )
+            except (Customer.DoesNotExist, User.DoesNotExist):
+                del_customer_task.delay(customer_id)
+
+    elif poll_type == "customer.subscription.deleted":
+        try:
+            subscription_id = data.id
+            customer_id = data.customer
+            customer_instance = Customer.objects.get(
+                stripe_subscription_id=subscription_id
             )
-        except (Customer.DoesNotExist, User.DoesNotExist):
-            del_customer_task.delay(payment.customer)
-
-    elif poll_type == "customer.payments.deleted":
-        try:
-            customer_instance = Customer.objects.get(stripe_subscription_id=payment.id)
             customer_instance.cancel_at_period_end = True
             customer_instance.save(update_fields=["cancel_at_period_end"])
         except Customer.DoesNotExist:
-            del_customer_task.delay(payment.customer)
+            pass
     else:
         print("Unhandled poll type {}".format(poll_type))
 
