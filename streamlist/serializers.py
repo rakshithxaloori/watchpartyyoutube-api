@@ -30,10 +30,19 @@ class VideoSerializer(ModelSerializer):
 class StreamListLongSerializer(ModelSerializer):
     status = SerializerMethodField()
     videos = SerializerMethodField()
+    duration_in_ms = SerializerMethodField()
 
     class Meta:
         model = StreamList
-        fields = ["id", "created_at", "title", "description", "status", "videos"]
+        fields = [
+            "id",
+            "created_at",
+            "title",
+            "description",
+            "status",
+            "videos",
+            "duration_in_ms",
+        ]
         read_only_fields = ["id", "created_at", "title"]
 
     def get_status(self, obj):
@@ -41,3 +50,6 @@ class StreamListLongSerializer(ModelSerializer):
 
     def get_videos(self, obj):
         return VideoSerializer(obj.videos.all().order_by("ordering"), many=True).data
+
+    def get_duration_in_ms(self, obj):
+        return obj.stream_video.duration_in_ms
