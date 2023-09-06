@@ -98,6 +98,9 @@ def webhook(request):
                         ),
                         "cancel_at_period_end": cancel_at_period_end,
                         "credit_hours": credit_hours,
+                        "plan": Customer.BASIC
+                        if price_id == STRIPE_BASIC_PRICE_ID
+                        else Customer.PRO,
                     },
                 )
             except (Customer.DoesNotExist, User.DoesNotExist):

@@ -8,6 +8,13 @@ from authentication.models import User
 
 
 class Customer(models.Model):
+    BASIC = "B"
+    PRO = "P"
+
+    PLAN_CHOICES = [
+        (BASIC, "Basic"),
+        (PRO, "Pro"),
+    ]
     user = models.OneToOneField(
         User, related_name="stripe_customer", on_delete=models.CASCADE
     )
@@ -21,6 +28,7 @@ class Customer(models.Model):
         default=False
     )  # Will cancel at end of period
     credit_hours = models.PositiveIntegerField(default=0)
+    plan = models.CharField(max_length=1, choices=PLAN_CHOICES, default=BASIC)
 
     def __str__(self):
         status = "Cancelled" if self.cancel_at_period_end else "Active"
