@@ -58,7 +58,6 @@ def create_user_view(request):
         )
 
     except Exception as e:
-        print(e)
         return BAD_REQUEST_RESPONSE
 
 

@@ -9,6 +9,7 @@ from streamlist.models import (
     StreamListStatus,
     Video,
     MediaConvertJob,
+    StreamVideo,
     MediaLiveChannel,
 )
 from streamlist.utils import get_mediaconvert_job_settings, create_medialive_channel
@@ -25,6 +26,7 @@ def del_s3_object_task(path, bucket_name):
         s3_client.delete_object(Bucket=bucket_name, Key=path)
     except Exception as e:
         print(e)
+        return
 
 
 @celery_app.task
@@ -80,6 +82,31 @@ def create_mediaconvert_job_task(stream_list_id):
 
 
 @celery_app.task
+def del_inputs_from_s3_task(stream_list_id):
+    try:
+        stream_list = StreamList.objects.get(id=stream_list_id)
+        videos = stream_list.videos.all()
+        for video in videos:
+            del_s3_object_task(video.path, AWS_INPUT_BUCKET_NAME)
+            video.status = Video.DELETED
+            video.save(update_fields=["status"])
+    except StreamList.DoesNotExist:
+        return
+
+
+@celery_app.task
+def del_outputs_from_s3_task(stream_list_id):
+    try:
+        stream_list = StreamList.objects.get(id=stream_list_id)
+        stream_video = stream_list.stream_video
+        del_s3_object_task(stream_video.path, AWS_OUTPUT_BUCKET_NAME)
+        stream_video.status = StreamVideo.DELETED
+        stream_video.save(update_fields=["status"])
+    except StreamList.DoesNotExist:
+        return
+
+
+@celery_app.task
 def create_channel_task(stream_list_id):
     try:
         stream_list = StreamList.objects.get(id=stream_list_id)
@@ -88,6 +115,7 @@ def create_channel_task(stream_list_id):
         )
         if latest_status.status != StreamListStatus.READY:
             return
+
         input_name = f"{stream_list.user.username}_{stream_list.id}"
         channel_name = f"{stream_list.user.username}_{stream_list.id}"
         stream_key = stream_list.stream_key
@@ -125,6 +153,16 @@ def create_channel_task(stream_list_id):
             video_description_name,
         )
         print("Channel created: ", channel_id)
+
+        try:
+            # Deduct the credit minutes
+            minutes_used = stream_video.duration_in_ms / 1000 / 60
+            customer = stream_list.user.stripe_customer
+            customer.credit_minutes -= minutes_used
+            customer.save(update_fields=["credit_minutes"])
+
+        except Exception as e:
+            print(e)
 
         # Update the medialive_channel instance
         medialive_channel.channel_id = channel_id
@@ -171,4 +209,7 @@ def delete_input_task(input_id):
         return
 
 
-# TODO delete s3 files after they are used
+# Every half hour
+# TODO delete channels that have stop_at < now
+# TODO delete channels that are not in the database
+# TODO delete inputs that are not in the database

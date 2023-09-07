@@ -16,13 +16,14 @@ def subscription_middleware(get_response):
             if (
                 payload["current_period_end"] != 0
                 and payload["current_period_end"] > timezone.now()
+                and payload["credit_minutes"] > 0
             ):
                 response = get_response(request)
                 return response
             else:
                 # You can't create new entries
                 return JsonResponse(
-                    {"detail": "Subscription required"},
+                    {"detail": "Subscription has finished. Upgrade or buy Add-Ons"},
                     status=status.HTTP_402_PAYMENT_REQUIRED,
                 )
 

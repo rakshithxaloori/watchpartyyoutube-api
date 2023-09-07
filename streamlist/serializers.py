@@ -1,6 +1,6 @@
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
-from streamlist.models import StreamList, Video
+from streamlist.models import StreamList, Video, StreamVideo
 
 
 class StreamListShortSerializer(ModelSerializer):
@@ -39,6 +39,7 @@ class StreamListLongSerializer(ModelSerializer):
             "created_at",
             "title",
             "description",
+            "credit_minutes_used",
             "status",
             "videos",
             "duration_in_ms",
@@ -52,4 +53,7 @@ class StreamListLongSerializer(ModelSerializer):
         return VideoSerializer(obj.videos.all().order_by("ordering"), many=True).data
 
     def get_duration_in_ms(self, obj):
-        return obj.stream_video.duration_in_ms
+        try:
+            return obj.stream_video.duration_in_ms
+        except StreamVideo.DoesNotExist:
+            return 0

@@ -12,4 +12,4 @@ def del_customer_task(cust_id):
         pass
 
 
-# TODO if current_period_end is passed, make credit_hours 0
+# TODO if current_period_end is passed, make credit_minutes 0

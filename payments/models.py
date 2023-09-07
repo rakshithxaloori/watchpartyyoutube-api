@@ -27,7 +27,7 @@ class Customer(models.Model):
     cancel_at_period_end = models.BooleanField(
         default=False
     )  # Will cancel at end of period
-    credit_hours = models.PositiveIntegerField(default=0)
+    credit_minutes = models.PositiveIntegerField(default=0)
     plan = models.CharField(max_length=1, choices=PLAN_CHOICES, default=BASIC)
 
     def __str__(self):

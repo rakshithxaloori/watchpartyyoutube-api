@@ -328,34 +328,71 @@ def mediaconvert_webhook_view(request):
                         medialive_channel = MediaLiveChannel.objects.get(
                             channel_id=channel_id
                         )
+                        stream_list = medialive_channel.stream_list
 
                         if channel_state == "CREATED":
                             medialive_channel.state = MediaLiveChannel.CREATED
                             start_channel_task.delay(channel_id)
                         elif channel_state == "RUNNING":
                             medialive_channel.state = MediaLiveChannel.RUNNING
-                            duration_in_ms = (
-                                medialive_channel.stream_list.stream_video.duration_in_ms
-                            )
+                            duration_in_ms = stream_list.stream_video.duration_in_ms
                             # Create new StreamListStatus
                             StreamListStatus.objects.create(
-                                stream_list=medialive_channel.stream_list,
+                                stream_list=stream_list,
                                 status=StreamListStatus.STREAMING,
                             )
-                            stop_channel_task.apply_async(
-                                (channel_id,),
-                                eta=timezone.now()
+                            eta_stop_at = (
+                                timezone.now()
                                 + timezone.timedelta(milliseconds=duration_in_ms)
-                                # a minute after the stream is supposed to end
-                                + timezone.timedelta(minutes=1),
+                                + timezone.timedelta(minutes=1)
+                            )
+                            medialive_channel.stop_at = eta_stop_at
+                            medialive_channel.save(update_fields=["stop_at"])
+                            stop_channel_task.apply_async(
+                                (channel_id,), eta=eta_stop_at
                             )
                         elif channel_state == "STOPPED":
                             medialive_channel.state = MediaLiveChannel.STOPPED
                             # Create new StreamListStatus
                             StreamListStatus.objects.create(
-                                stream_list=medialive_channel.stream_list,
+                                stream_list=stream_list,
                                 status=StreamListStatus.FINISHED,
                             )
+                            try:
+                                # Recalculate the credit minutes
+                                customer = stream_list.user.stripe_customer
+                                streaming_stream_list_status = (
+                                    StreamListStatus.objects.filter(
+                                        stream_list=stream_list,
+                                        status=StreamListStatus.STREAMING,
+                                    ).first()
+                                )
+                                if streaming_stream_list_status is not None:
+                                    stream_video_duration_in_minutes = (
+                                        (stream_list.stream_video.duration_in_ms)
+                                        / 1000
+                                        / 60
+                                    )
+                                    actual_duration_in_minutes = (
+                                        timezone.now()
+                                        - streaming_stream_list_status.created_at
+                                    ).total_seconds() / 60
+                                    customer.credit_minutes += (
+                                        stream_video_duration_in_minutes
+                                        - actual_duration_in_minutes
+                                    )
+                                    customer.save(update_fields=["credit_minutes"])
+
+                                    stream_list.credit_minutes_used = (
+                                        actual_duration_in_minutes
+                                    )
+                                    stream_list.save(
+                                        update_fields=["credit_minutes_used"]
+                                    )
+
+                            except Exception as e:
+                                pass
+
                             delete_channel_task.delay(channel_id)
                         elif channel_state == "DELETED":
                             medialive_channel.state = MediaLiveChannel.DELETED
@@ -367,7 +404,6 @@ def mediaconvert_webhook_view(request):
 
                     except MediaLiveChannel.DoesNotExist:
                         print("MediaLiveChannel does not exist", channel_arn)
-                        pass
 
             return HttpResponse(status=200)
 
@@ -376,97 +412,3 @@ def mediaconvert_webhook_view(request):
             return HttpResponse(status=200)
     else:
         return HttpResponse(status=405)  # Method Not Allowed
-
-
-# Channel Created
-{
-    "version": "0",
-    "id": "8414ed30-2189-3f27-7940-7863b747c755",
-    "detail-type": "MediaLive Channel State Change",
-    "source": "aws.medialive",
-    "account": "662294483096",
-    "time": "2023-08-30T10:03:48Z",
-    "region": "us-east-1",
-    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
-    "detail": {
-        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
-        "state": "CREATED",
-        "message": "Created channel",
-        "pipelines_running_count": 0,
-    },
-}
-
-# Channel Running
-{
-    "version": "0",
-    "id": "cb7611d1-94d0-e07c-9199-dfa0696b519b",
-    "detail-type": "MediaLive Channel State Change",
-    "source": "aws.medialive",
-    "account": "662294483096",
-    "time": "2023-08-30T10:05:59Z",
-    "region": "us-east-1",
-    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
-    "detail": {
-        "pipelines_running_count": 1,
-        "state": "RUNNING",
-        "pipeline": "0",
-        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
-        "message": "Pipeline started for channel",
-    },
-}
-
-# Channel Stopping
-{
-    "version": "0",
-    "id": "5ded23d4-bddd-b1ef-c2d7-3c72e8311236",
-    "detail-type": "MediaLive Channel State Change",
-    "source": "aws.medialive",
-    "account": "662294483096",
-    "time": "2023-08-30T10:08:46Z",
-    "region": "us-east-1",
-    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
-    "detail": {
-        "pipelines_running_count": 0,
-        "state": "STOPPING",
-        "pipeline": "0",
-        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
-        "message": "Stopping pipeline",
-    },
-}
-
-# Channel Stopped
-{
-    "version": "0",
-    "id": "7fca9e69-89ce-c82c-635c-f0694923efac",
-    "detail-type": "MediaLive Channel State Change",
-    "source": "aws.medialive",
-    "account": "662294483096",
-    "time": "2023-08-30T10:09:08Z",
-    "region": "us-east-1",
-    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
-    "detail": {
-        "pipelines_running_count": 0,
-        "state": "STOPPED",
-        "pipeline": "0",
-        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
-        "message": "Stop detected on pipeline",
-    },
-}
-
-# Channel Deleted
-{
-    "version": "0",
-    "id": "2f93a36e-2827-dc58-104b-5f5b0887a789",
-    "detail-type": "MediaLive Channel State Change",
-    "source": "aws.medialive",
-    "account": "662294483096",
-    "time": "2023-08-30T10:10:48Z",
-    "region": "us-east-1",
-    "resources": ["arn:aws:medialive:us-east-1:662294483096:channel:5741658"],
-    "detail": {
-        "channel_arn": "arn:aws:medialive:us-east-1:662294483096:channel:5741658",
-        "state": "DELETED",
-        "message": "Deleted channel",
-        "pipelines_running_count": 0,
-    },
-}

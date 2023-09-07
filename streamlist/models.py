@@ -12,11 +12,13 @@ class StreamList(models.Model):
     title = models.CharField(max_length=100)
     description = models.CharField(max_length=1000)
     stream_key = models.CharField(max_length=100, null=True, blank=True)
+    credit_minutes_used = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return f"{self.user.username} | {self.title}"
 
     class Meta:
+        ordering = ["-created_at"]
         verbose_name = "StreamList"
 
 
@@ -56,17 +58,19 @@ class StreamListStatus(models.Model):
 
     class Meta:
         verbose_name = "StreamListStatus"
-        ordering = ["-stream_list__created_at", "-created_at"]
+        ordering = ["stream_list", "-created_at"]
 
 
 class Video(models.Model):
-    UPLOADING = "U"
-    UPLOADED = "D"
+    CREATED = "C"
+    UPLOADED = "U"
+    DELETED = "D"
     ERROR = "E"
 
     STATUS_CHOICES = [
-        (UPLOADING, "Uploading"),
+        (CREATED, "Created"),
         (UPLOADED, "Uploaded"),
+        (DELETED, "Deleted"),
         (ERROR, "Error"),
     ]
 
@@ -84,7 +88,7 @@ class Video(models.Model):
     status = models.CharField(
         max_length=1,
         choices=STATUS_CHOICES,
-        default=UPLOADING,
+        default=CREATED,
     )
 
     def __str__(self):
@@ -128,9 +132,20 @@ class MediaConvertJob(models.Model):
 
     class Meta:
         verbose_name = "MediaConvertJob"
+        ordering = ["stream_list"]
 
 
 class StreamVideo(models.Model):
+    CREATED = "C"
+    DELETED = "D"
+    ERROR = "E"
+
+    STATUS_CHOICES = [
+        (CREATED, "Created"),
+        (DELETED, "Deleted"),
+        (ERROR, "Error"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     stream_list = models.OneToOneField(
@@ -140,12 +155,18 @@ class StreamVideo(models.Model):
 
     path = models.URLField()
     duration_in_ms = models.PositiveIntegerField()
+    status = models.CharField(
+        max_length=1,
+        choices=STATUS_CHOICES,
+        default=CREATED,
+    )
 
     def __str__(self):
         return f"{self.user.username} | {self.stream_list.title}"
 
     class Meta:
         verbose_name = "StreamVideo"
+        ordering = ["stream_list"]
 
 
 class MediaLiveChannel(models.Model):
@@ -168,6 +189,7 @@ class MediaLiveChannel(models.Model):
         StreamList, related_name="media_live_channel", on_delete=models.CASCADE
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    stop_at = models.DateTimeField(null=True, blank=True)
 
     channel_id = models.CharField(max_length=100, null=True, blank=True)
     input_id = models.CharField(max_length=100)
@@ -185,3 +207,4 @@ class MediaLiveChannel(models.Model):
 
     class Meta:
         verbose_name = "MediaLiveChannel"
+        ordering = ["stream_list"]

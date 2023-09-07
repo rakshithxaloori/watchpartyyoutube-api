@@ -67,8 +67,8 @@ def webhook(request):
         #     customer_id = payment.customer
         #     try:
         #         customer_instance = Customer.objects.get(stripe_customer_id=customer_id)
-        #         customer_instance.credit_hours += quantity
-        #         customer_instance.save(update_fields=["credit_hours"])
+        #         customer_instance.credit_minutes += quantity*60
+        #         customer_instance.save(update_fields=["credit_minutes"])
         #     except Customer.DoesNotExist:
         #         del_customer_task.delay(customer_id)
 
@@ -82,11 +82,11 @@ def webhook(request):
             try:
                 stripe_customer = stripe.Customer.retrieve(customer_id)
                 user = User.objects.get(email=stripe_customer.email)
-                credit_hours = 0
+                credit_minutes = 0
                 if price_id == STRIPE_BASIC_PRICE_ID:
-                    credit_hours = 12
+                    credit_minutes = 12 * 60
                 elif price_id == STRIPE_PRO_PRICE_ID:
-                    credit_hours = 36
+                    credit_minutes = 36 * 60
 
                 Customer.objects.update_or_create(
                     user=user,
@@ -97,7 +97,7 @@ def webhook(request):
                             datetime.datetime.fromtimestamp(current_period_end)
                         ),
                         "cancel_at_period_end": cancel_at_period_end,
-                        "credit_hours": credit_hours,
+                        "credit_minutes": credit_minutes,
                         "plan": Customer.BASIC
                         if price_id == STRIPE_BASIC_PRICE_ID
                         else Customer.PRO,
