@@ -1,0 +1,86 @@
+version: 0.2
+
+env:
+  parameter-store:
+    SECRET_KEY: "/wpy-prod/SECRET_KEY"
+    ADMIN_URL: "/wpy-prod/ADMIN_URL"
+    X_AUTH_KEY: "/wpy-prod/X_AUTH_KEY"
+
+    RDS_USERNAME: "/wpy-prod/RDS_USERNAME"
+    RDS_PASSWORD: "/wpy-prod/RDS_PASSWORD"
+    RDS_HOSTNAME: "/wpy-prod/RDS_HOSTNAME"
+
+    AWS_S3_ACCESS_KEY_ID: "/wpy-prod/AWS_S3_ACCESS_KEY_ID"
+    AWS_S3_SECRET_ACCESS_KEY: "/wpy-prod/AWS_S3_SECRET_ACCESS_KEY"
+
+    AWS_MC_ACCESS_KEY_ID: "/wpy-prod/AWS_MC_ACCESS_KEY_ID"
+    AWS_MC_SECRET_ACCESS_KEY: "/wpy-prod/AWS_MC_SECRET_ACCESS_KEY"
+    AWS_MC_ENDPOINT_URL: "/wpy-prod/AWS_MC_ENDPOINT_URL"
+    AWS_MC_ROLE_ARN: "/wpy-prod/AWS_MC_ROLE_ARN"
+
+    AWS_SNS_ACCESS_KEY_ID: "/wpy-prod/AWS_SNS_ACCESS_KEY_ID"
+    AWS_SNS_SECRET_ACCESS_KEY: "/wpy-prod/AWS_SNS_SECRET_ACCESS_KEY"
+    AWS_SNS_TOPIC_ARN: "/wpy-prod/AWS_SNS_TOPIC_ARN"
+
+    AWS_MEDIALIVE_ACCESS_KEY_ID: "/wpy-prod/AWS_MEDIALIVE_ACCESS_KEY_ID"
+    AWS_MEDIALIVE_SECRET_ACCESS_KEY: "/wpy-prod/AWS_MEDIALIVE_SECRET_ACCESS_KEY"
+    AWS_MEDIALIVE_ROLE_ARN: "/wpy-prod/AWS_MEDIALIVE_ROLE_ARN"
+
+    STRIPE_SECRET_KEY: "/wpy-prod/STRIPE_SECRET_KEY"
+    STRIPE_WEBHOOK_SECRET: "/wpy-prod/STRIPE_WEBHOOK_SECRET"
+    STRIPE_BASIC_PRICE_ID: "/wpy-prod/STRIPE_BASIC_PRICE_ID"
+    STRIPE_PRO_PRICE_ID: "/wpy-prod/STRIPE_PRO_PRICE_ID"
+    STRIPE_ADDON_PRICE_ID: "/wpy-prod/STRIPE_ADDON_PRICE_ID"
+
+    RESEND_API_KEY: "/wpy-prod/RESEND_API_KEY"
+    RESEND_WEBHOOK_SIGNING_KEY: "/wpy-prod/RESEND_WEBHOOK_SIGNING_KEY"
+
+phases:
+  pre_build:
+    commands:
+      - echo Fetching env variables from S3...
+      - touch env.bash
+      - aws s3 cp $S3_ENV_FILE env.bash
+      - . ./env.bash
+
+      - echo CI_CD_STAGE $CI_CD_STAGE
+
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+  build:
+    commands:
+      - DATE=$(date +"%Y%m%d_%H%M%S")
+      - echo Build started on $(date +"%Y%m%d_%H%M%S")
+      - echo Building the Docker images...
+      - API_URI_T=$REPOSITORY_URI:api_$DATE
+      - NGINX_URI_T=$REPOSITORY_URI:nginx_$DATE
+      - CELERY_URI_T=$REPOSITORY_URI:celery_$DATE
+      - BEAT_URI_T=$REPOSITORY_URI:beat_$DATE
+
+      - docker-compose -f docker-compose.prod.yml build
+      - docker tag api:latest $API_URI_T
+      - docker tag nginx:latest $NGINX_URI_T
+      - docker tag celery:latest $CELERY_URI_T
+      - docker tag beat:latest $BEAT_URI_T
+      # - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $REPOSITORY_URI/$IMAGE_REPO_NAME:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo Build completed on $(date +"%Y%m%d_%H%M%S")
+      - echo Pushing the Docker images...
+      - docker push --all-tags $REPOSITORY_URI
+
+      - sed -i 's@<NGINX_IMAGE>@'"$NGINX_URI_T"'@' aws/prod/taskdef.json
+      - sed -i 's@<API_IMAGE>@'"$API_URI_T"'@' aws/prod/taskdef.json
+      - sed -i 's@<CELERY_IMAGE>@'"$CELERY_URI_T"'@' aws/prod/taskdef.json
+      - sed -i 's@<BEAT_IMAGE>@'"$BEAT_URI_T"'@' aws/prod/taskdef.json
+
+      - cat aws/prod/taskdef.json
+
+      - printf '[{"name":"wpy-api","imageUri":"%s"},{"name":"wpy-nginx","imageUri":"%s"},{"name":"wpy-celery","imageUri":"%s"},{"name":"wpy-beat","imageUri":"%s"}]' $API_URI_T $NGINX_URI_T $CELERY_URI_T $BEAT_URI_T > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+    - aws/prod/taskdef.json
+  name: buildartifacts

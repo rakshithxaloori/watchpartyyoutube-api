@@ -1,0 +1,188 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/prod/api.Dockerfile
+      args:
+        - SECRET_KEY=${SECRET_KEY}
+        - ADMIN_URL=${ADMIN_URL}
+        - X_AUTH_KEY=${X_AUTH_KEY}
+
+        - RDS_USERNAME=${RDS_USERNAME}
+        - RDS_PASSWORD=${RDS_PASSWORD}
+        - RDS_HOSTNAME=${RDS_HOSTNAME}
+
+        - AWS_S3_ACCESS_KEY_ID=${AWS_S3_ACCESS_KEY_ID}
+        - AWS_S3_SECRET_ACCESS_KEY=${AWS_S3_SECRET_ACCESS_KEY}
+
+        - AWS_MC_ACCESS_KEY_ID=${AWS_MC_ACCESS_KEY_ID}
+        - AWS_MC_SECRET_ACCESS_KEY=${AWS_MC_SECRET_ACCESS_KEY}
+        - AWS_MC_ENDPOINT_URL=${AWS_MC_ENDPOINT_URL}
+        - AWS_MC_ROLE_ARN=${AWS_MC_ROLE_ARN}
+
+        - AWS_SNS_ACCESS_KEY_ID=${AWS_SNS_ACCESS_KEY_ID}
+        - AWS_SNS_SECRET_ACCESS_KEY=${AWS_SNS_SECRET_ACCESS_KEY}
+        - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
+
+        - AWS_MEDIALIVE_ACCESS_KEY_ID=${AWS_MEDIALIVE_ACCESS_KEY_ID}
+        - AWS_MEDIALIVE_SECRET_ACCESS_KEY=${AWS_MEDIALIVE_SECRET_ACCESS_KEY}
+        - AWS_MEDIALIVE_ROLE_ARN=${AWS_MEDIALIVE_ROLE_ARN}
+
+        - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+        - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+        - STRIPE_BASIC_PRICE_ID=${STRIPE_BASIC_PRICE_ID}
+        - STRIPE_PRO_PRICE_ID=${STRIPE_PRO_PRICE_ID}
+        - STRIPE_ADDON_PRICE_ID=${STRIPE_ADDON_PRICE_ID}
+
+        - RESEND_API_KEY=${RESEND_API_KEY}
+        - RESEND_WEBHOOK_SIGNING_KEY=${RESEND_WEBHOOK_SIGNING_KEY}
+
+        - CI_CD_STAGE=${CI_CD_STAGE}
+        - RDS_DB_NAME=${RDS_DB_NAME}
+        - RDS_PORT=${RDS_PORT}
+        - REDIS_URL=${REDIS_URL}
+        - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+        - AWS_S3_CUSTOM_DOMAIN=${AWS_S3_CUSTOM_DOMAIN}
+        - AWS_CDN_BUCKET_NAME=${AWS_CDN_BUCKET_NAME}
+        - AWS_INPUT_BUCKET_NAME=${AWS_INPUT_BUCKET_NAME}
+        - AWS_OUTPUT_BUCKET_NAME=${AWS_OUTPUT_BUCKET_NAME}
+
+    image: api:latest
+    command:
+      - python manage.py migrate --noinput
+      - python manage.py collectstatic --noinput
+      - daphne -b 0.0.0.0 -p 8000 watchpartyyoutube.asgi:application
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "8000:8000"
+    restart: on-failure
+
+  nginx:
+    build: docker/prod/nginx
+    image: nginx:latest
+    ports:
+      - "80:80"
+    restart: on-failure
+    depends_on:
+      - api
+    healthcheck:
+      test: curl --fail http://localhost/ht/ || exit 1
+      interval: 10s
+      retries: 10
+      start_period: 30s
+      timeout: 10s
+
+  celery:
+    build:
+      context: .
+      dockerfile: docker/prod/celery.Dockerfile
+      args:
+        - SECRET_KEY=${SECRET_KEY}
+        - ADMIN_URL=${ADMIN_URL}
+        - X_AUTH_KEY=${X_AUTH_KEY}
+
+        - RDS_USERNAME=${RDS_USERNAME}
+        - RDS_PASSWORD=${RDS_PASSWORD}
+        - RDS_HOSTNAME=${RDS_HOSTNAME}
+
+        - AWS_S3_ACCESS_KEY_ID=${AWS_S3_ACCESS_KEY_ID}
+        - AWS_S3_SECRET_ACCESS_KEY=${AWS_S3_SECRET_ACCESS_KEY}
+
+        - AWS_MC_ACCESS_KEY_ID=${AWS_MC_ACCESS_KEY_ID}
+        - AWS_MC_SECRET_ACCESS_KEY=${AWS_MC_SECRET_ACCESS_KEY}
+        - AWS_MC_ENDPOINT_URL=${AWS_MC_ENDPOINT_URL}
+        - AWS_MC_ROLE_ARN=${AWS_MC_ROLE_ARN}
+
+        - AWS_SNS_ACCESS_KEY_ID=${AWS_SNS_ACCESS_KEY_ID}
+        - AWS_SNS_SECRET_ACCESS_KEY=${AWS_SNS_SECRET_ACCESS_KEY}
+        - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
+
+        - AWS_MEDIALIVE_ACCESS_KEY_ID=${AWS_MEDIALIVE_ACCESS_KEY_ID}
+        - AWS_MEDIALIVE_SECRET_ACCESS_KEY=${AWS_MEDIALIVE_SECRET_ACCESS_KEY}
+        - AWS_MEDIALIVE_ROLE_ARN=${AWS_MEDIALIVE_ROLE_ARN}
+
+        - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+        - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+        - STRIPE_BASIC_PRICE_ID=${STRIPE_BASIC_PRICE_ID}
+        - STRIPE_PRO_PRICE_ID=${STRIPE_PRO_PRICE_ID}
+        - STRIPE_ADDON_PRICE_ID=${STRIPE_ADDON_PRICE_ID}
+
+        - RESEND_API_KEY=${RESEND_API_KEY}
+        - RESEND_WEBHOOK_SIGNING_KEY=${RESEND_WEBHOOK_SIGNING_KEY}
+
+        - CI_CD_STAGE=${CI_CD_STAGE}
+        - RDS_DB_NAME=${RDS_DB_NAME}
+        - RDS_PORT=${RDS_PORT}
+        - REDIS_URL=${REDIS_URL}
+        - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+        - AWS_S3_CUSTOM_DOMAIN=${AWS_S3_CUSTOM_DOMAIN}
+        - AWS_CDN_BUCKET_NAME=${AWS_CDN_BUCKET_NAME}
+        - AWS_INPUT_BUCKET_NAME=${AWS_INPUT_BUCKET_NAME}
+        - AWS_OUTPUT_BUCKET_NAME=${AWS_OUTPUT_BUCKET_NAME}
+
+    image: celery:latest
+    command: celery -A watchpartyyoutube worker -l INFO --uid=nobody --gid=nogroup -Q celery
+    volumes:
+      - .:/usr/src/app
+    restart: on-failure
+    depends_on:
+      - nginx
+
+  beat:
+    build:
+      context: .
+      dockerfile: docker/prod/beat.Dockerfile
+      args:
+        - SECRET_KEY=${SECRET_KEY}
+        - ADMIN_URL=${ADMIN_URL}
+        - X_AUTH_KEY=${X_AUTH_KEY}
+
+        - RDS_USERNAME=${RDS_USERNAME}
+        - RDS_PASSWORD=${RDS_PASSWORD}
+        - RDS_HOSTNAME=${RDS_HOSTNAME}
+
+        - AWS_S3_ACCESS_KEY_ID=${AWS_S3_ACCESS_KEY_ID}
+        - AWS_S3_SECRET_ACCESS_KEY=${AWS_S3_SECRET_ACCESS_KEY}
+
+        - AWS_MC_ACCESS_KEY_ID=${AWS_MC_ACCESS_KEY_ID}
+        - AWS_MC_SECRET_ACCESS_KEY=${AWS_MC_SECRET_ACCESS_KEY}
+        - AWS_MC_ENDPOINT_URL=${AWS_MC_ENDPOINT_URL}
+        - AWS_MC_ROLE_ARN=${AWS_MC_ROLE_ARN}
+
+        - AWS_SNS_ACCESS_KEY_ID=${AWS_SNS_ACCESS_KEY_ID}
+        - AWS_SNS_SECRET_ACCESS_KEY=${AWS_SNS_SECRET_ACCESS_KEY}
+        - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
+
+        - AWS_MEDIALIVE_ACCESS_KEY_ID=${AWS_MEDIALIVE_ACCESS_KEY_ID}
+        - AWS_MEDIALIVE_SECRET_ACCESS_KEY=${AWS_MEDIALIVE_SECRET_ACCESS_KEY}
+        - AWS_MEDIALIVE_ROLE_ARN=${AWS_MEDIALIVE_ROLE_ARN}
+
+        - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+        - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+        - STRIPE_BASIC_PRICE_ID=${STRIPE_BASIC_PRICE_ID}
+        - STRIPE_PRO_PRICE_ID=${STRIPE_PRO_PRICE_ID}
+        - STRIPE_ADDON_PRICE_ID=${STRIPE_ADDON_PRICE_ID}
+
+        - RESEND_API_KEY=${RESEND_API_KEY}
+        - RESEND_WEBHOOK_SIGNING_KEY=${RESEND_WEBHOOK_SIGNING_KEY}
+
+        - CI_CD_STAGE=${CI_CD_STAGE}
+        - RDS_DB_NAME=${RDS_DB_NAME}
+        - RDS_PORT=${RDS_PORT}
+        - REDIS_URL=${REDIS_URL}
+        - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+        - AWS_S3_CUSTOM_DOMAIN=${AWS_S3_CUSTOM_DOMAIN}
+        - AWS_CDN_BUCKET_NAME=${AWS_CDN_BUCKET_NAME}
+        - AWS_INPUT_BUCKET_NAME=${AWS_INPUT_BUCKET_NAME}
+        - AWS_OUTPUT_BUCKET_NAME=${AWS_OUTPUT_BUCKET_NAME}
+
+    image: beat:latest
+    command: celery -A watchpartyyoutube beat -l info
+    volumes:
+      - .:/usr/src/app
+    restart: on-failure
+    depends_on:
+      - nginx

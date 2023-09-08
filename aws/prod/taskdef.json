@@ -1,0 +1,526 @@
+{
+  "executionRoleArn": "arn:aws:iam::662294483096:role/WPY-ECS-Task-Execution",
+  "taskRoleArn": "arn:aws:iam::662294483096:role/WPY-ECS-Task",
+  "containerDefinitions": [
+    {
+      "name": "wpy-nginx",
+      "image": "<NGINX_IMAGE>",
+      "essential": true,
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "protocol": "tcp",
+          "containerPort": 80
+        }
+      ],
+      "pseudoTerminal": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "secretOptions": [
+          {
+            "name": "SECRET_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/SECRET_KEY"
+          },
+          {
+            "name": "ADMIN_URL",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/ADMIN_URL"
+          },
+          {
+            "name": "X_AUTH_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/X_AUTH_KEY"
+          },
+          {
+            "name": "RDS_USERNAME",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_USERNAME"
+          },
+          {
+            "name": "RDS_PASSWORD",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_PASSWORD"
+          },
+          {
+            "name": "RDS_HOSTNAME",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_HOSTNAME"
+          },
+          {
+            "name": "AWS_S3_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_S3_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_S3_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_S3_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MC_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_MC_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MC_ENDPOINT_URL",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ENDPOINT_URL"
+          },
+          {
+            "name": "AWS_MC_ROLE_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ROLE_ARN"
+          },
+          {
+            "name": "AWS_SNS_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_SNS_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_SNS_TOPIC_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_TOPIC_ARN"
+          },
+          {
+            "name": "AWS_MEDIALIVE_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_MEDIALIVE_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MEDIALIVE_ROLE_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_ROLE_ARN"
+          },
+          {
+            "name": "STRIPE_SECRET_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_SECRET_KEY"
+          },
+          {
+            "name": "STRIPE_WEBHOOK_SECRET",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_WEBHOOK_SECRET"
+          },
+          {
+            "name": "STRIPE_BASIC_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_BASIC_PRICE_ID"
+          },
+          {
+            "name": "STRIPE_PRO_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_PRO_PRICE_ID"
+          },
+          {
+            "name": "STRIPE_ADDON_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_ADDON_PRICE_ID"
+          },
+          {
+            "name": "RESEND_API_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RESEND_API_KEY"
+          },
+          {
+            "name": "RESEND_WEBHOOK_SIGNING_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RESEND_WEBHOOK_SIGNING_KEY"
+          }
+        ],
+
+        "options": {
+          "awslogs-group": "/ecs/wpy",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["sh", "-c", "curl --fail http://localhost/ht/ || exit 1"],
+        "interval": 10,
+        "retries": 10,
+        "startPeriod": 30,
+        "timeout": 10
+      }
+    },
+    {
+      "name": "wpy-api",
+      "image": "<API_IMAGE>",
+      "essential": true,
+      "environmentFiles": [
+        {
+          "value": "arn:aws:s3:::wpy-env/prod.env",
+          "type": "s3"
+        }
+      ],
+      "pseudoTerminal": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "secretOptions": [
+          {
+            "name": "SECRET_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/SECRET_KEY"
+          },
+          {
+            "name": "ADMIN_URL",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/ADMIN_URL"
+          },
+          {
+            "name": "X_AUTH_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/X_AUTH_KEY"
+          },
+          {
+            "name": "RDS_USERNAME",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_USERNAME"
+          },
+          {
+            "name": "RDS_PASSWORD",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_PASSWORD"
+          },
+          {
+            "name": "RDS_HOSTNAME",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_HOSTNAME"
+          },
+          {
+            "name": "AWS_S3_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_S3_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_S3_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_S3_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MC_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_MC_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MC_ENDPOINT_URL",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ENDPOINT_URL"
+          },
+          {
+            "name": "AWS_MC_ROLE_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ROLE_ARN"
+          },
+          {
+            "name": "AWS_SNS_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_SNS_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_SNS_TOPIC_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_TOPIC_ARN"
+          },
+          {
+            "name": "AWS_MEDIALIVE_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_MEDIALIVE_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MEDIALIVE_ROLE_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_ROLE_ARN"
+          },
+          {
+            "name": "STRIPE_SECRET_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_SECRET_KEY"
+          },
+          {
+            "name": "STRIPE_WEBHOOK_SECRET",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_WEBHOOK_SECRET"
+          },
+          {
+            "name": "STRIPE_BASIC_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_BASIC_PRICE_ID"
+          },
+          {
+            "name": "STRIPE_PRO_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_PRO_PRICE_ID"
+          },
+          {
+            "name": "STRIPE_ADDON_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_ADDON_PRICE_ID"
+          },
+          {
+            "name": "RESEND_API_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RESEND_API_KEY"
+          },
+          {
+            "name": "RESEND_WEBHOOK_SIGNING_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RESEND_WEBHOOK_SIGNING_KEY"
+          }
+        ],
+
+        "options": {
+          "awslogs-group": "/ecs/wpy",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "secrets": []
+    },
+    {
+      "name": "wpy-celery",
+      "image": "<CELERY_IMAGE>",
+      "essential": true,
+      "environmentFiles": [
+        {
+          "value": "arn:aws:s3:::wpy-env/prod.env",
+          "type": "s3"
+        }
+      ],
+      "pseudoTerminal": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "secretOptions": [
+          {
+            "name": "SECRET_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/SECRET_KEY"
+          },
+          {
+            "name": "ADMIN_URL",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/ADMIN_URL"
+          },
+          {
+            "name": "X_AUTH_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/X_AUTH_KEY"
+          },
+          {
+            "name": "RDS_USERNAME",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_USERNAME"
+          },
+          {
+            "name": "RDS_PASSWORD",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_PASSWORD"
+          },
+          {
+            "name": "RDS_HOSTNAME",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_HOSTNAME"
+          },
+          {
+            "name": "AWS_S3_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_S3_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_S3_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_S3_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MC_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_MC_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MC_ENDPOINT_URL",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ENDPOINT_URL"
+          },
+          {
+            "name": "AWS_MC_ROLE_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ROLE_ARN"
+          },
+          {
+            "name": "AWS_SNS_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_SNS_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_SNS_TOPIC_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_TOPIC_ARN"
+          },
+          {
+            "name": "AWS_MEDIALIVE_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_MEDIALIVE_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MEDIALIVE_ROLE_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_ROLE_ARN"
+          },
+          {
+            "name": "STRIPE_SECRET_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_SECRET_KEY"
+          },
+          {
+            "name": "STRIPE_WEBHOOK_SECRET",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_WEBHOOK_SECRET"
+          },
+          {
+            "name": "STRIPE_BASIC_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_BASIC_PRICE_ID"
+          },
+          {
+            "name": "STRIPE_PRO_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_PRO_PRICE_ID"
+          },
+          {
+            "name": "STRIPE_ADDON_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_ADDON_PRICE_ID"
+          },
+          {
+            "name": "RESEND_API_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RESEND_API_KEY"
+          },
+          {
+            "name": "RESEND_WEBHOOK_SIGNING_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RESEND_WEBHOOK_SIGNING_KEY"
+          }
+        ],
+
+        "options": {
+          "awslogs-group": "/ecs/wpy",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "secrets": [],
+      "dependsOn": [
+        {
+          "containerName": "wpy-nginx",
+          "condition": "HEALTHY"
+        }
+      ]
+    },
+    {
+      "name": "wpy-beat",
+      "image": "<BEAT_IMAGE>",
+      "essential": true,
+      "environmentFiles": [
+        {
+          "value": "arn:aws:s3:::wpy-env/prod.env",
+          "type": "s3"
+        }
+      ],
+      "pseudoTerminal": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "secretOptions": [
+          {
+            "name": "SECRET_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/SECRET_KEY"
+          },
+          {
+            "name": "ADMIN_URL",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/ADMIN_URL"
+          },
+          {
+            "name": "X_AUTH_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/X_AUTH_KEY"
+          },
+          {
+            "name": "RDS_USERNAME",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_USERNAME"
+          },
+          {
+            "name": "RDS_PASSWORD",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_PASSWORD"
+          },
+          {
+            "name": "RDS_HOSTNAME",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RDS_HOSTNAME"
+          },
+          {
+            "name": "AWS_S3_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_S3_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_S3_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_S3_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MC_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_MC_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MC_ENDPOINT_URL",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ENDPOINT_URL"
+          },
+          {
+            "name": "AWS_MC_ROLE_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MC_ROLE_ARN"
+          },
+          {
+            "name": "AWS_SNS_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_SNS_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_SNS_TOPIC_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_SNS_TOPIC_ARN"
+          },
+          {
+            "name": "AWS_MEDIALIVE_ACCESS_KEY_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_ACCESS_KEY_ID"
+          },
+          {
+            "name": "AWS_MEDIALIVE_SECRET_ACCESS_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_SECRET_ACCESS_KEY"
+          },
+          {
+            "name": "AWS_MEDIALIVE_ROLE_ARN",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/AWS_MEDIALIVE_ROLE_ARN"
+          },
+          {
+            "name": "STRIPE_SECRET_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_SECRET_KEY"
+          },
+          {
+            "name": "STRIPE_WEBHOOK_SECRET",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_WEBHOOK_SECRET"
+          },
+          {
+            "name": "STRIPE_BASIC_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_BASIC_PRICE_ID"
+          },
+          {
+            "name": "STRIPE_PRO_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_PRO_PRICE_ID"
+          },
+          {
+            "name": "STRIPE_ADDON_PRICE_ID",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/STRIPE_ADDON_PRICE_ID"
+          },
+          {
+            "name": "RESEND_API_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RESEND_API_KEY"
+          },
+          {
+            "name": "RESEND_WEBHOOK_SIGNING_KEY",
+            "valueFrom": "arn:aws:ssm:us-east-1:662294483096:parameter/wpy-prod/RESEND_WEBHOOK_SIGNING_KEY"
+          }
+        ],
+
+        "options": {
+          "awslogs-group": "/ecs/wpy",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "secrets": [],
+      "dependsOn": [
+        {
+          "containerName": "wpy-nginx",
+          "condition": "HEALTHY"
+        }
+      ]
+    }
+  ],
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "512",
+  "memory": "2048",
+  "family": "wpy"
+}

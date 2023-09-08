@@ -43,6 +43,18 @@ services:
       nginx:
         condition: service_healthy
 
+  beat:
+    build:
+      context: .
+      dockerfile: docker/dev/Dockerfile
+    command: celery -A watchpartyyoutube beat -l info
+    volumes:
+      - .:/usr/src/app
+    restart: on-failure
+    depends_on:
+      nginx:
+        condition: service_healthy
+
 volumes:
   static:
 
