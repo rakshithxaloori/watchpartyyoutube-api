@@ -17,14 +17,14 @@ urlpatterns = [
     path("session/update/", views.update_session_view, name="update session"),
     # TODO test
     path("session/delete/", views.delete_session_view, name="delete session"),
-    # path(
-    #     "verification/create/",
-    #     views.create_verification_token_view,
-    #     name="create verification token",
-    # ),
-    # path(
-    #     "verification/use/",
-    #     views.use_verification_token_view,
-    #     name="use verification token",
-    # ),
+    path(
+        "verification/create/",
+        views.create_verification_token_view,
+        name="create verification token",
+    ),
+    path(
+        "verification/use/",
+        views.use_verification_token_view,
+        name="use verification token",
+    ),
 ]

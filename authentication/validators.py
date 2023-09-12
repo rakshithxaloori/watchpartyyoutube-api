@@ -13,12 +13,20 @@ class UserCreateValidator(serializers.ModelSerializer):
 
 
 class UserUpdateValidator(serializers.ModelSerializer):
-    name = serializers.CharField(allow_null=True, allow_blank=True)
-    image = serializers.URLField(allow_null=True, allow_blank=True)
+    email = serializers.EmailField(required=False)
+    name = serializers.CharField(required=False)
+    image = serializers.URLField(required=False)
 
     class Meta:
         model = User
-        fields = ["username", "email", "image", "emailVerified", "name"]
+        fields = [
+            "username",
+            "emailVerified",
+            "email",
+            "name",
+            "image",
+        ]
+        read_only_fields = ["username"]
 
 
 class LinkAccountValidator(serializers.ModelSerializer):
@@ -35,13 +43,3 @@ class LinkAccountValidator(serializers.ModelSerializer):
             "scope",
             "id_token",
         ]
-
-
-# sample data for UserUpdateValidator
-data = {
-    "username": "test",
-    "email": "test@gmal.com",
-    "image": "https://test.com",
-    "emailVerified": "2021-09-09T12:00:00.000Z",
-    "name": "",
-}

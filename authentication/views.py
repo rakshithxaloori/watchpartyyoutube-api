@@ -4,8 +4,18 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 
 
-from authentication.models import User, Account, Session, generate_random_username
-from authentication.serializers import UserAuthSerializer, SessionAuthSerializer
+from authentication.models import (
+    User,
+    Account,
+    Session,
+    generate_random_username,
+    VerificationToken,
+)
+from authentication.serializers import (
+    UserAuthSerializer,
+    SessionAuthSerializer,
+    VerificationTokenAuthSerializer,
+)
 from watchpartyyoutube.utils import BAD_REQUEST_RESPONSE
 from authentication.middleware import auth_key_middleware
 from authentication.validators import (
@@ -90,25 +100,33 @@ def get_user_view(request):
 @api_view(["POST"])
 @auth_key_middleware
 def update_user_view(request):
-    validator = UserUpdateValidator(data=request.data)
+    post_data = request.data.copy()
+    post_data["username"] = post_data["id"]
+    del post_data["id"]
+    validator = UserUpdateValidator(data=post_data)
     if not validator.is_valid():
+        print("User update validation failed")
+        print(validator.errors)
         return BAD_REQUEST_RESPONSE
 
     username = request.data.get("id", None)
     email = request.data.get("email", None)
     image = request.data.get("image", None)
-    name = request.data.get("name", None)
+    name = request.data.get("name", "")
     emailVerified = request.data.get("emailVerified", None)
 
     try:
         user = User.objects.get(username=username)
     except User.DoesNotExist:
+        print("User not found")
         return BAD_REQUEST_RESPONSE
 
-    user.email = email
-    user.image = image
-    user.first_name = name.split(" ")[0] if len(name.split(" ")) > 0 else None
-    user.last_name = name.split(" ")[1] if len(name.split(" ")) > 1 else None
+    user.email = email if email is not None else user.email
+    user.image = image if image is not None else user.image
+    if len(name.split(" ")) > 0:
+        user.first_name = name.split(" ")[0]
+    if len(name.split(" ")) > 1:
+        user.last_name = name.split(" ")[1]
     user.emailVerified = emailVerified
     user.save()
 
@@ -267,3 +285,59 @@ def delete_session_view(request):
 
     session.delete()
     return JsonResponse({"detail": "Session deleted"}, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@auth_key_middleware
+def create_verification_token_view(request):
+    identifier = request.data.get("identifier", None)
+    expires = request.data.get("expires", None)
+    token = request.data.get("token", None)
+
+    if None in [identifier, expires, token]:
+        return BAD_REQUEST_RESPONSE
+
+    try:
+        verification_token = VerificationToken.objects.create(
+            identifier=identifier, expires=expires, token=token
+        )
+    except Exception as e:
+        print(e)
+        return BAD_REQUEST_RESPONSE
+
+    verification_token_data = VerificationTokenAuthSerializer(verification_token).data
+    return JsonResponse(
+        {
+            "detail": "Verification token created",
+            "payload": {"verification_token": verification_token_data},
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@auth_key_middleware
+def use_verification_token_view(request):
+    identifier = request.data.get("identifier", None)
+    token = request.data.get("token", None)
+
+    if None in [identifier, token]:
+        return BAD_REQUEST_RESPONSE
+
+    try:
+        verification_token = VerificationToken.objects.get(
+            identifier=identifier, token=token
+        )
+    except VerificationToken.DoesNotExist:
+        return BAD_REQUEST_RESPONSE
+
+    verification_token_data = VerificationTokenAuthSerializer(verification_token).data
+    verification_token.delete()
+
+    return JsonResponse(
+        {
+            "detail": "Verification token deleted",
+            "payload": {"verification_token": verification_token_data},
+        },
+        status=status.HTTP_200_OK,
+    )

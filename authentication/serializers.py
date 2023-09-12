@@ -1,6 +1,6 @@
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 
-from authentication.models import User, Session
+from authentication.models import User, Session, VerificationToken
 
 
 class UserAuthSerializer(ModelSerializer):
@@ -31,3 +31,9 @@ class SessionAuthSerializer(ModelSerializer):
 
     def get_userId(self, obj):
         return obj.user.username
+
+
+class VerificationTokenAuthSerializer(ModelSerializer):
+    class Meta:
+        model = VerificationToken
+        fields = ["identifier", "expires", "token"]

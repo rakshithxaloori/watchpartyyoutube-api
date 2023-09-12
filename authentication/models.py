@@ -66,3 +66,14 @@ class Session(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.username} | {self.user.email}"
+
+
+class VerificationToken(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    identifier = models.TextField(unique=True)
+    expires = models.DateTimeField()
+    token = models.TextField()
+
+    def __str__(self) -> str:
+        return f"{self.identifier} | {self.token}"
